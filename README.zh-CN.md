@@ -3,9 +3,9 @@
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
 [![Tauri](https://img.shields.io/badge/Tauri-2-24c8db?logo=tauri&logoColor=white)](https://github.com/tauri-apps/tauri)
-[![Release](https://img.shields.io/github/v/release/ImFeH2/pinote?display_name=tag&sort=semver)](https://github.com/ImFeH2/pinote/releases/latest)
-[![CI](https://github.com/ImFeH2/pinote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ImFeH2/pinote/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/ImFeH2/pinote)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/imfeh2/pinote?display_name=tag&sort=semver)](https://github.com/imfeh2/pinote/releases/latest)
+[![CI](https://github.com/imfeh2/pinote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/imfeh2/pinote/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/imfeh2/pinote)](./LICENSE)
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-24292f)](#安装)
 
 Pinote 是一款轻量的桌面悬浮 Markdown 便签，适合随手记录待办、代码片段和临时想法。每个便签都对应一个独立文件，可以自由摆放，并单独设置置顶、只读和透明度。
@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/69cefbd0-77a1-4144-973d-2c21055058da
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/ImFeH2/pinote/releases/latest) 下载最新版。
+从 [GitHub Releases](https://github.com/imfeh2/pinote/releases/latest) 下载最新版。
 
 | 平台    | 推荐安装包                       |
 | ------- | -------------------------------- |

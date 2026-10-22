@@ -3,7 +3,7 @@ name = "pinote"
 version = "0.6.2"
 description = "A lightweight floating markdown scratchpad app"
 authors = ["ImFeH2 <i@feh2.im>"]
-repository = "https://github.com/ImFeH2/pinote"
+repository = "https://github.com/imfeh2/pinote"
 license = "Apache-2.0"
 edition = "2024"
 

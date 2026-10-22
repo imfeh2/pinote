@@ -3,9 +3,9 @@
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
 [![Tauri](https://img.shields.io/badge/Tauri-2-24c8db?logo=tauri&logoColor=white)](https://github.com/tauri-apps/tauri)
-[![Release](https://img.shields.io/github/v/release/ImFeH2/pinote?display_name=tag&sort=semver)](https://github.com/ImFeH2/pinote/releases/latest)
-[![CI](https://github.com/ImFeH2/pinote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ImFeH2/pinote/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/ImFeH2/pinote)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/imfeh2/pinote?display_name=tag&sort=semver)](https://github.com/imfeh2/pinote/releases/latest)
+[![CI](https://github.com/imfeh2/pinote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/imfeh2/pinote/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/imfeh2/pinote)](./LICENSE)
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-24292f)](#installation)
 
 Pinote is a lightweight floating Markdown note app for desktop. Keep multiple notes close at hand for TODOs, code snippets, and temporary ideas without leaving your current workspace.
@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/69cefbd0-77a1-4144-973d-2c21055058da
 
 ## Installation
 
-Download the latest version from [GitHub Releases](https://github.com/ImFeH2/pinote/releases/latest).
+Download the latest version from [GitHub Releases](https://github.com/imfeh2/pinote/releases/latest).
 
 | Platform | Recommended Package               |
 | -------- | --------------------------------- |

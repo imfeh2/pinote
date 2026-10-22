@@ -129,7 +129,7 @@ jobs:
           }
 
           $version = "${{ steps.version.outputs.version }}"
-          $installerUrl = "https://github.com/ImFeH2/pinote/releases/download/v$version/Pinote_${version}_x64_en-US.msi"
+          $installerUrl = "https://github.com/imfeh2/pinote/releases/download/v$version/Pinote_${version}_x64_en-US.msi"
 
           .\wingetcreate.exe update ImFeH2.Pinote `
             -u $installerUrl `

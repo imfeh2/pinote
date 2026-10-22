@@ -31,7 +31,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/ImFeH2/pinote/releases/latest/download/latest.json"
+        "https://github.com/imfeh2/pinote/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI4QkU0MUQwNDJCQjhFOUMKUldTY2pydEMwRUcrS0dIMk9QZEdRc0VXVjNMdVV2YnBWVHFVZzcralB0Z2NBWWc2aVhLUEdlbjQK",
       "windows": {

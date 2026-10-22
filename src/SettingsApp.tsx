@@ -52,7 +52,7 @@ import {
 } from "@/lib/windowApi";
 import { openAndTrackNoteWindow } from "@/lib/windowManager";
 
-const REPOSITORY_URL = "https://github.com/ImFeH2/pinote";
+const REPOSITORY_URL = "https://github.com/imfeh2/pinote";
 const HISTORY_SEARCH_LIMIT = 80;
 const HISTORY_SEARCH_DEBOUNCE_MS = 120;
 const settingsSections = new Set<SettingsSection>(
