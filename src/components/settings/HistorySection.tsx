@@ -28,6 +28,7 @@ import {
   deleteHistoryNotes,
   type NoteDeleteFailure,
   type NoteHistorySearchResult,
+  removeHistoryRecords,
 } from "@/lib/noteHistory";
 import { cn } from "@/lib/utils";
 import type { EditorFontFamily } from "@/stores/settings";
@@ -231,13 +232,14 @@ export function HistorySection({
     );
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (deleteFiles: boolean) => {
     if (!deletePaths || deleting) return;
     setDeleting(true);
     previewRequestRef.current += 1;
     setPreview(null);
     try {
-      const { deleted, failures } = await deleteHistoryNotes(deletePaths);
+      const remove = deleteFiles ? deleteHistoryNotes : removeHistoryRecords;
+      const { deleted, failures } = await remove(deletePaths);
       setPathsChecked(deleted, false);
       for (const path of deleted) previewCacheRef.current.delete(path);
       onDeleted(deleted);
@@ -429,23 +431,21 @@ export function HistorySection({
         title={t("history.deleteTitle", { count: deletePaths?.length ?? 0 })}
         description={t("history.deleteDescription")}
         cancelLabel={t("history.cancel")}
-        actionLabel={t(deleting ? "history.deleting" : "history.delete")}
+        actions={[
+          {
+            label: t("history.removeRecords"),
+            onAction: () => void handleDelete(false),
+          },
+          {
+            label: t("history.deleteFiles"),
+            destructive: true,
+            onAction: () => void handleDelete(true),
+          },
+        ]}
         busy={deleting}
         returnFocusRef={searchRef}
         onClose={() => setDeletePaths(null)}
-        onAction={() => void handleDelete()}
-      >
-        <ul className="pinote-scrollbar min-h-0 overflow-y-auto rounded-md border border-border text-xs">
-          {deletePaths?.map((path) => (
-            <li
-              key={path}
-              className="break-all border-b border-border px-3 py-2 last:border-0"
-            >
-              {path}
-            </li>
-          ))}
-        </ul>
-      </AlertDialog>
+      />
       <AlertDialog
         open={deleteFailures.length > 0}
         title={t("history.deleteFailed")}

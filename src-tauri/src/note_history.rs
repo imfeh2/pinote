@@ -238,7 +238,21 @@ impl NoteHistoryStore {
         note_paths: Vec<String>,
         window_label: &str,
     ) -> Result<NoteDeleteResult, String> {
-        self.access("delete", window_label, |history, operation_id| {
+        self.remove(note_paths, true, window_label)
+    }
+
+    fn remove(
+        &self,
+        note_paths: Vec<String>,
+        delete_files: bool,
+        window_label: &str,
+    ) -> Result<NoteDeleteResult, String> {
+        let operation = if delete_files {
+            "delete"
+        } else {
+            "remove_records"
+        };
+        self.access(operation, window_label, |history, operation_id| {
             let known_paths: HashSet<_> = history
                 .entries
                 .values()
@@ -250,10 +264,12 @@ impl NoteHistoryStore {
                 if !seen.insert(note_path.clone()) {
                     continue;
                 }
-                let deletion = if known_paths.contains(&note_path) {
+                let deletion = if !known_paths.contains(&note_path) {
+                    Err(String::from("Note is no longer in history."))
+                } else if delete_files {
                     delete_note_file(Path::new(&note_path)).map_err(|error| error.to_string())
                 } else {
-                    Err(String::from("Note is no longer in history."))
+                    Ok(())
                 };
                 match deletion {
                     Ok(()) => result.deleted.push(note_path),
@@ -281,7 +297,7 @@ impl NoteHistoryStore {
                 }
             }
             log::info!(
-                "history_delete_finished operation_id={operation_id} deleted={} failed={}",
+                "history_delete_finished operation_id={operation_id} delete_files={delete_files} deleted={} failed={}",
                 result.deleted.len(),
                 result.failures.len()
             );
@@ -343,6 +359,16 @@ pub async fn delete_history_notes(
     run(app, move |store| store.delete(note_paths, &label)).await
 }
 
+#[tauri::command]
+pub async fn remove_history_records(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    note_paths: Vec<String>,
+) -> Result<NoteDeleteResult, String> {
+    let label = window.label().to_string();
+    run(app, move |store| store.remove(note_paths, false, &label)).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -386,6 +412,37 @@ mod tests {
             history.order.push(key);
         }
         store.save(&history, "seed").unwrap();
+    }
+
+    #[test]
+    fn removes_records_without_changing_files_or_directories() {
+        let dir = directory();
+        let store = NoteHistoryStore::new(dir.path().join("history.json"));
+        seed(&store, 4);
+        let paths: Vec<_> = (0..4)
+            .map(|index| dir.path().join(format!("{index}.md")))
+            .collect();
+        fs::write(&paths[0], "keep").unwrap();
+        fs::create_dir(&paths[2]).unwrap();
+        fs::write(&paths[3], "unselected").unwrap();
+        let unknown = dir.path().join("unknown.md");
+        fs::write(&unknown, "unknown").unwrap();
+        let requested = [&paths[0], &paths[1], &paths[2], &paths[0], &unknown]
+            .into_iter()
+            .map(|path| path.to_str().unwrap().to_string())
+            .collect();
+        let result = store.remove(requested, false, "settings").unwrap();
+        assert_eq!(result.deleted.len(), 3);
+        assert_eq!(result.failures.len(), 1);
+        assert_eq!(result.failures[0].note_path, unknown.to_str().unwrap());
+        let entries = store.list("reader").unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].note_path, paths[3].to_str().unwrap());
+        assert_eq!(fs::read_to_string(&paths[0]).unwrap(), "keep");
+        assert!(!paths[1].exists());
+        assert!(paths[2].is_dir());
+        assert_eq!(fs::read_to_string(&paths[3]).unwrap(), "unselected");
+        assert_eq!(fs::read_to_string(&unknown).unwrap(), "unknown");
     }
 
     #[test]
@@ -600,6 +657,13 @@ mod tests {
             .record(params(&dir.path().join("new.md")), "writer")
             .unwrap_err();
         assert!(error.contains("Could not replace history:"));
+        assert_eq!(fs::read(&store.path).unwrap(), original);
+        let result = store
+            .remove(vec![note.to_str().unwrap().to_string()], false, "settings")
+            .unwrap();
+        assert!(result.deleted.is_empty());
+        assert_eq!(result.failures.len(), 1);
+        assert_eq!(fs::read_to_string(&note).unwrap(), "content");
         assert_eq!(fs::read(&store.path).unwrap(), original);
         let result = store
             .delete(vec![note.to_str().unwrap().to_string()], "settings")

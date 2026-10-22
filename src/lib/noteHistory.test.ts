@@ -4,6 +4,7 @@ import {
   listNoteHistoryEntries,
   type NoteHistoryEntry,
   recordOpenedNote,
+  removeHistoryRecords,
   searchNoteHistory,
 } from "./noteHistory";
 
@@ -74,6 +75,12 @@ test("delegates recording and deletion to the shared history service", async () 
   expect(mocks.invoke).toHaveBeenCalledWith("delete_history_notes", {
     notePaths: ["/notes/0.md", "/notes/1.md"],
   });
+  expect(await removeHistoryRecords(["/notes/0.md", "/notes/1.md"])).toEqual(
+    result,
+  );
+  expect(mocks.invoke).toHaveBeenLastCalledWith("remove_history_records", {
+    notePaths: ["/notes/0.md", "/notes/1.md"],
+  });
 });
 
 test("propagates storage errors instead of presenting empty history or deletion success", async () => {
@@ -81,6 +88,7 @@ test("propagates storage errors instead of presenting empty history or deletion 
   mocks.invoke.mockRejectedValue(error);
   await expect(searchNoteHistory("")).rejects.toBe(error);
   await expect(deleteHistoryNotes(["/notes/0.md"])).rejects.toBe(error);
+  await expect(removeHistoryRecords(["/notes/0.md"])).rejects.toBe(error);
   await expect(
     recordOpenedNote({
       notePath: "/notes/0.md",

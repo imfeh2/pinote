@@ -23,6 +23,11 @@ export interface NoteDeleteFailure {
   reason: string;
 }
 
+interface NoteDeleteResult {
+  deleted: string[];
+  failures: NoteDeleteFailure[];
+}
+
 const CONTENT_SEARCH_BATCH_SIZE = 32;
 
 function includesText(value: string, query: string) {
@@ -104,8 +109,9 @@ export async function searchNoteHistory(
 }
 
 export function deleteHistoryNotes(notePaths: string[]) {
-  return invoke<{ deleted: string[]; failures: NoteDeleteFailure[] }>(
-    "delete_history_notes",
-    { notePaths },
-  );
+  return invoke<NoteDeleteResult>("delete_history_notes", { notePaths });
+}
+
+export function removeHistoryRecords(notePaths: string[]) {
+  return invoke<NoteDeleteResult>("remove_history_records", { notePaths });
 }

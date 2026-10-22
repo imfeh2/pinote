@@ -1,5 +1,6 @@
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import type { ReactNode, RefObject } from "react";
+import { cn } from "@/lib/utils";
 
 interface AlertDialogProps {
   open: boolean;
@@ -7,11 +8,14 @@ interface AlertDialogProps {
   description: string;
   children?: ReactNode;
   cancelLabel: string;
-  actionLabel?: string;
+  actions?: {
+    label: string;
+    destructive?: boolean;
+    onAction: () => void;
+  }[];
   busy?: boolean;
   returnFocusRef: RefObject<HTMLElement | null>;
   onClose: () => void;
-  onAction?: () => void;
 }
 
 export function AlertDialog({
@@ -20,11 +24,10 @@ export function AlertDialog({
   description,
   children,
   cancelLabel,
-  actionLabel,
+  actions = [],
   busy = false,
   returnFocusRef,
   onClose,
-  onAction,
 }: AlertDialogProps) {
   return (
     <AlertDialogPrimitive.Root
@@ -36,6 +39,7 @@ export function AlertDialog({
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <AlertDialogPrimitive.Content
+          aria-busy={busy}
           className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border border-border bg-background p-4 text-foreground shadow-xl"
           onEscapeKeyDown={(event) => {
             if (busy) event.preventDefault();
@@ -52,25 +56,31 @@ export function AlertDialog({
             {description}
           </AlertDialogPrimitive.Description>
           {children}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <AlertDialogPrimitive.Cancel
               disabled={busy}
               className="h-8 rounded-md border border-border px-3 text-xs hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
             >
               {cancelLabel}
             </AlertDialogPrimitive.Cancel>
-            {actionLabel && (
+            {actions.map(({ label, destructive, onAction }) => (
               <AlertDialogPrimitive.Action
+                key={label}
                 disabled={busy}
                 onClick={(event) => {
                   event.preventDefault();
-                  onAction?.();
+                  onAction();
                 }}
-                className="h-8 rounded-md bg-destructive px-3 text-xs text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
+                className={cn(
+                  "h-8 rounded-md border px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40",
+                  destructive
+                    ? "border-transparent bg-destructive text-white hover:opacity-90"
+                    : "border-border hover:bg-accent",
+                )}
               >
-                {actionLabel}
+                {label}
               </AlertDialogPrimitive.Action>
-            )}
+            ))}
           </div>
         </AlertDialogPrimitive.Content>
       </AlertDialogPrimitive.Portal>

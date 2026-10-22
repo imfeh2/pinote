@@ -139,9 +139,11 @@ export default {
     selectNote: "选择 {{path}}",
     clearSelection: "清空选择",
     delete: "删除",
-    deleting: "正在删除…",
+    removeRecords: "Remove records",
+    deleteFiles: "Delete files",
     deleteTitle: "删除 {{count}} 条便签？",
-    deleteDescription: "对应的 Markdown 文件将被永久删除。",
+    deleteDescription:
+      "Remove history records or permanently delete the Markdown files.",
     deleteFailed: "删除失败",
     deleteFailedDescription: "以下便签未能删除。",
     cancel: "取消",

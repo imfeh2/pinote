@@ -1100,6 +1100,7 @@ pub fn run() {
             note_history::list_note_history,
             note_history::record_note_history,
             note_history::delete_history_notes,
+            note_history::remove_history_records,
             load_window_state_cache,
             get_window_state,
             get_window_state_by_note_path,

@@ -7,10 +7,14 @@ import { HistorySection } from "./HistorySection";
 
 const mocks = vi.hoisted(() => ({
   deleteNotes: vi.fn(),
+  removeRecords: vi.fn(),
   open: vi.fn(),
   deleted: vi.fn(),
 }));
-vi.mock("@/lib/noteHistory", () => ({ deleteHistoryNotes: mocks.deleteNotes }));
+vi.mock("@/lib/noteHistory", () => ({
+  deleteHistoryNotes: mocks.deleteNotes,
+  removeHistoryRecords: mocks.removeRecords,
+}));
 vi.mock("@tauri-apps/plugin-fs", () => ({ readTextFile: async () => "" }));
 vi.mock("react-i18next", async () => {
   const { createInstance } = await import("i18next");
@@ -109,6 +113,7 @@ beforeEach(() => {
   HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
   HTMLElement.prototype.releasePointerCapture = vi.fn();
   mocks.deleteNotes.mockResolvedValue({ deleted: [], failures: [] });
+  mocks.removeRecords.mockResolvedValue({ deleted: [], failures: [] });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -241,6 +246,49 @@ test("auto-scrolls across the row width and stops after releasing the pointer", 
   expect(list.scrollTop).toBe(position);
 });
 
+test("removes records using a separate action and keeps the dialog busy until completion", async () => {
+  const results = notes(3);
+  await render(results);
+  await click(checkbox(0));
+  await click(checkbox(1));
+  await click(element('[aria-label="Delete"]'));
+  const dialog = element('[role="alertdialog"]', document);
+  let finish: (result: { deleted: string[]; failures: [] }) => void = () => {
+    throw new Error("Missing operation");
+  };
+  mocks.removeRecords.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await click(
+    Array.from(dialog.querySelectorAll("button")).find(
+      (button) => button.textContent === "Remove records",
+    ) as HTMLElement,
+  );
+  expect(mocks.removeRecords).toHaveBeenCalledWith(
+    results.slice(0, 2).map((item) => item.notePath),
+  );
+  expect(mocks.deleteNotes).not.toHaveBeenCalled();
+  expect(dialog.getAttribute("aria-busy")).toBe("true");
+  expect(
+    Array.from(dialog.querySelectorAll("button")).every(
+      (button) => button.disabled,
+    ),
+  ).toBe(true);
+  await act(async () =>
+    finish({
+      deleted: results.slice(0, 2).map((item) => item.notePath),
+      failures: [],
+    }),
+  );
+  expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  expect(element('[aria-live="polite"]').textContent).toBe("0/3");
+  expect(mocks.deleted).toHaveBeenCalledWith(
+    results.slice(0, 2).map((item) => item.notePath),
+  );
+});
+
 test("confirms all selected paths across searches and displays partial failures in one dialog", async () => {
   const first = notes(1, "first");
   const second = notes(1, "second");
@@ -250,8 +298,11 @@ test("confirms all selected paths across searches and displays partial failures 
   await click(checkbox(0));
   await click(element('[aria-label="Delete"]'));
   let dialog = element('[role="alertdialog"]', document);
-  expect(dialog.textContent).toContain(first[0].notePath);
-  expect(dialog.textContent).toContain(second[0].notePath);
+  expect(dialog.textContent).not.toContain(first[0].notePath);
+  expect(dialog.textContent).not.toContain(second[0].notePath);
+  expect(dialog.textContent).toContain("Delete 2 notes?");
+  expect(dialog.textContent).toContain("Remove records");
+  expect(dialog.textContent).toContain("Delete files");
   expect(mocks.deleteNotes).not.toHaveBeenCalled();
   await click(
     Array.from(dialog.querySelectorAll("button")).find(
@@ -267,13 +318,14 @@ test("confirms all selected paths across searches and displays partial failures 
   dialog = element('[role="alertdialog"]', document);
   await click(
     Array.from(dialog.querySelectorAll("button")).find(
-      (button) => button.textContent === "Delete",
+      (button) => button.textContent === "Delete files",
     ) as HTMLElement,
   );
   expect(mocks.deleteNotes).toHaveBeenCalledWith([
     first[0].notePath,
     second[0].notePath,
   ]);
+  expect(mocks.removeRecords).not.toHaveBeenCalled();
   expect(mocks.deleted).toHaveBeenCalledWith([first[0].notePath]);
   dialog = element('[role="alertdialog"]', document);
   expect(dialog.textContent).toContain("Permission denied");
