@@ -75,11 +75,18 @@ test("keeps more than 1000 entries and searches beyond the old display limit", a
     windowId: "note-new",
   });
   expect(await listNoteHistoryEntries()).toHaveLength(1002);
-  expect(await searchNoteHistory("")).toHaveLength(1002);
-  expect(await searchNoteHistory("/notes/")).toHaveLength(1002);
-  expect(await searchNoteHistory("unique content")).toMatchObject([
-    { notePath: "/notes/1000.md", matchedByContent: true },
-  ]);
+  const all = await searchNoteHistory("");
+  expect(all.results).toHaveLength(1002);
+  expect(all.total).toBe(1002);
+  expect((await searchNoteHistory("/notes/")).results).toHaveLength(1002);
+  expect(await searchNoteHistory("unique content")).toMatchObject({
+    results: [{ notePath: "/notes/1000.md", matchedByContent: true }],
+    total: 1002,
+  });
+  expect(await searchNoteHistory("no matches")).toEqual({
+    results: [],
+    total: 1002,
+  });
 });
 
 test("deletes each selected file once, cleans missing files, and preserves failed and unselected entries", async () => {
@@ -102,6 +109,10 @@ test("deletes each selected file once, cleans missing files, and preserves faile
   expect((await listNoteHistoryEntries()).map((item) => item.notePath)).toEqual(
     ["/notes/2.md", "/notes/3.md"],
   );
+  expect(await searchNoteHistory("/notes/2.md")).toMatchObject({
+    results: [{ notePath: "/notes/2.md" }],
+    total: 2,
+  });
   expect(fs.files.has("/notes/0.md")).toBe(false);
   expect(fs.files.has("/notes/3.md")).toBe(true);
   expect(

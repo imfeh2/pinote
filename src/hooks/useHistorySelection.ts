@@ -112,10 +112,12 @@ export function useHistorySelection(
     ignoreClickRef.current = false;
     if (disabled || event.button !== 0 || event.pointerType === "touch") return;
     const target = (event.target as HTMLElement).closest<HTMLElement>(
-      "[data-history-index]",
+      "[data-history-select]",
     );
     if (!target || !event.currentTarget.contains(target)) return;
-    const index = Number(target.dataset.historyIndex);
+    const index = Number(
+      target.closest<HTMLElement>("[data-history-index]")?.dataset.historyIndex,
+    );
     const path = results[index]?.notePath;
     if (path === undefined) return;
     event.preventDefault();
@@ -142,7 +144,7 @@ export function useHistorySelection(
       const edge = 32;
       const direction =
         drag.y < bounds.top + edge ? -1 : drag.y > bounds.bottom - edge ? 1 : 0;
-      if (direction && drag.x >= bounds.left && drag.x <= bounds.left + 44) {
+      if (direction && drag.x >= bounds.left && drag.x <= bounds.right) {
         list.scrollTop += direction * Math.min(now - lastFrame, 32) * 0.5;
         paintAtPointer();
       }

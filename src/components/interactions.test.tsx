@@ -238,6 +238,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         historyQuery=""
         historyLoading={false}
         historyResults={[item]}
+        historyTotal={1}
         onDeleted={() => {}}
         historyOpeningPath={null}
         historyError={null}
@@ -277,6 +278,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         historyQuery=""
         historyLoading={false}
         historyResults={[next]}
+        historyTotal={1}
         onDeleted={() => {}}
         historyOpeningPath={null}
         historyError={null}

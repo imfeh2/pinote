@@ -27,6 +27,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { saveDiagnosticReport } from "@/lib/diagnostics";
 import {
   type NoteHistorySearchResult,
+  type NoteHistorySearchSnapshot,
   searchNoteHistory,
 } from "@/lib/noteHistory";
 import { resolveDefaultNotesDirectory } from "@/lib/notes";
@@ -166,16 +167,18 @@ export function SettingsApp() {
   const [bringNotesBackCount, setBringNotesBackCount] = useState<number | null>(
     null,
   );
-  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyRequest, setHistoryRequest] = useState({ query: "" });
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [historyResults, setHistoryResults] = useState<
-    NoteHistorySearchResult[]
-  >([]);
+  const [historySearch, setHistorySearch] = useState<NoteHistorySearchSnapshot>(
+    {
+      results: [],
+      total: 0,
+    },
+  );
   const [historyOpeningPath, setHistoryOpeningPath] = useState<string | null>(
     null,
   );
-  const [historyReloadToken, setHistoryReloadToken] = useState(0);
   const [runtimePlatform, setRuntimePlatform] =
     useState<RuntimePlatform>("other");
   const [globalShortcutRegistration, setGlobalShortcutRegistration] = useState<{
@@ -488,7 +491,7 @@ export function SettingsApp() {
           focus: true,
         });
         setHistoryError(null);
-        setHistoryReloadToken((value) => value + 1);
+        setHistoryRequest((current) => ({ ...current }));
       } catch (error) {
         setHistoryError(getErrorMessage(error, t));
       } finally {
@@ -568,13 +571,12 @@ export function SettingsApp() {
   useEffect(() => {
     if (activeSection !== "history") return;
     let active = true;
-    const requestVersion = historyReloadToken;
     setHistoryLoading(true);
     const timer = window.setTimeout(() => {
-      searchNoteHistory(historyQuery)
-        .then((results) => {
-          if (!active || requestVersion !== historyReloadToken) return;
-          setHistoryResults(results);
+      searchNoteHistory(historyRequest.query)
+        .then((snapshot) => {
+          if (!active) return;
+          setHistorySearch(snapshot);
           setHistoryError(null);
         })
         .catch((error) => {
@@ -590,7 +592,7 @@ export function SettingsApp() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [activeSection, historyQuery, historyReloadToken, t]);
+  }, [activeSection, historyRequest, t]);
 
   useEffect(() => {
     return subscribeUpdateState((next) => {
@@ -737,19 +739,23 @@ export function SettingsApp() {
       />
     ) : activeSection === "history" ? (
       <HistorySection
-        historyQuery={historyQuery}
+        historyQuery={historyRequest.query}
         historyLoading={historyLoading}
-        historyResults={historyResults}
+        historyResults={historySearch.results}
+        historyTotal={historySearch.total}
         historyOpeningPath={historyOpeningPath}
         historyError={historyError}
-        setHistoryQuery={setHistoryQuery}
+        setHistoryQuery={(query) => setHistoryRequest({ query })}
         onOpenHistoryItem={handleOpenHistoryItem}
         onDeleted={(paths) => {
           const deleted = new Set(paths);
-          setHistoryResults((current) =>
-            current.filter((item) => !deleted.has(item.notePath)),
-          );
-          setHistoryReloadToken((value) => value + 1);
+          setHistorySearch((current) => ({
+            results: current.results.filter(
+              (item) => !deleted.has(item.notePath),
+            ),
+            total: current.total - deleted.size,
+          }));
+          setHistoryRequest((current) => ({ ...current }));
         }}
         formatDateTime={(value) =>
           formatDateTime(value, i18n.resolvedLanguage ?? "en-US")

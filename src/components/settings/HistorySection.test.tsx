@@ -43,13 +43,14 @@ function notes(count: number, prefix = "note") {
   }));
 }
 
-async function render(results = notes(3), query = "") {
+async function render(results = notes(3), query = "", total = results.length) {
   await act(async () =>
     root.render(
       <HistorySection
         historyQuery={query}
         historyLoading={false}
         historyResults={results}
+        historyTotal={total}
         historyOpeningPath={null}
         historyError={null}
         setHistoryQuery={() => {}}
@@ -88,10 +89,14 @@ async function pointer(node: HTMLElement, type: string, x = 15, y = 25) {
     ),
   );
 }
+function checkbox(index: number) {
+  return element(`[data-history-index="${index}"] [data-history-select]`);
+}
+function noteButton(index: number) {
+  return element(`[data-history-index="${index}"] [data-history-open]`);
+}
 function checked(index: number) {
-  return element(`[data-history-index="${index}"]`).getAttribute(
-    "aria-checked",
-  );
+  return checkbox(index).getAttribute("aria-checked");
 }
 
 beforeEach(() => {
@@ -117,7 +122,9 @@ afterEach(async () => {
 
 test("loads more rows on scroll and selects all matching results including unloaded ones", async () => {
   const results = notes(120);
-  await render(results);
+  const other = notes(1, "other");
+  await render(results, "note-", 121);
+  expect(element('[aria-live="polite"]').textContent).toBe("0/121");
   expect(container.querySelectorAll("[data-history-open]")).toHaveLength(40);
   const list = element('[aria-label="History"]');
   Object.defineProperties(list, {
@@ -132,31 +139,41 @@ test("loads more rows on scroll and selects all matching results including unloa
   );
   expect(container.querySelectorAll("[data-history-open]")).toHaveLength(80);
   await click(element('[aria-label="Select all results"]'));
-  expect(container.textContent).toContain("120 selected");
-  await render(notes(1, "other"), "other");
-  expect(container.textContent).toContain("120 outside results");
-  await click(element('[data-history-index="0"]'));
-  expect(container.textContent).toContain("121 selected");
-  await render(results);
+  expect(element('[aria-live="polite"]').textContent).toBe("120/121");
+  await render(other, "other", 121);
+  expect(element('[aria-live="polite"]').textContent).toBe("120/121");
+  await click(checkbox(0));
+  expect(element('[aria-live="polite"]').textContent).toBe("121/121");
+  await render(results, "note-", 121);
   expect(checked(0)).toBe("true");
   await click(element('[aria-label="Select all results"]'));
-  expect(container.textContent).toContain("1 selected");
+  expect(element('[aria-live="polite"]').textContent).toBe("1/121");
+  await render([], "no matches", 121);
+  expect(element('[aria-live="polite"]').textContent).toBe("1/121");
+  await render([...results, ...other]);
+  expect(element('[aria-live="polite"]').textContent).toBe("1/121");
   await click(element('[aria-label="Clear selection"]'));
+  expect(element('[aria-live="polite"]').textContent).toBe("0/121");
   expect(checked(0)).toBe("false");
 });
 
-test("drag uses the starting checkbox state, fills skipped rows, and never reverses on revisit", async () => {
+test("drag selects across whole rows using the starting checkbox state without reversing on revisit", async () => {
   await render(notes(5));
-  await click(element('[data-history-index="2"]'));
-  await pointer(element('[data-history-index="0"]'), "pointerdown");
-  await pointer(element('[data-history-index="3"]'), "pointermove");
-  await pointer(element('[data-history-index="1"]'), "pointermove");
+  await click(checkbox(2));
+  await pointer(checkbox(0), "pointerdown");
+  await pointer(noteButton(3), "pointermove", 200);
+  await pointer(element("span", noteButton(1)), "pointermove", 180);
   expect([0, 1, 2, 3].map(checked)).toEqual(["true", "true", "true", "true"]);
-  await pointer(element('[data-history-index="1"]'), "pointerup");
-  await pointer(element('[data-history-index="3"]'), "pointerdown");
-  await pointer(element('[data-history-index="0"]'), "pointermove");
-  await pointer(element('[data-history-index="2"]'), "pointermove");
-  await pointer(element('[data-history-index="2"]'), "pointerup");
+  await pointer(noteButton(1), "pointerup", 180);
+  await act(async () =>
+    noteButton(1).dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+    ),
+  );
+  await pointer(checkbox(3), "pointerdown");
+  await pointer(noteButton(0), "pointermove", 200);
+  await pointer(noteButton(2), "pointermove", 200);
+  await pointer(noteButton(2), "pointerup", 200);
   expect([0, 1, 2, 3, 4].map(checked)).toEqual([
     "false",
     "false",
@@ -167,46 +184,56 @@ test("drag uses the starting checkbox state, fills skipped rows, and never rever
   expect(mocks.open).not.toHaveBeenCalled();
 });
 
+test("clicking a note opens it without starting selection", async () => {
+  await render();
+  await pointer(noteButton(0), "pointerdown", 200);
+  await pointer(noteButton(2), "pointermove", 200);
+  await pointer(noteButton(2), "pointerup", 200);
+  expect([0, 1, 2].map(checked)).toEqual(["false", "false", "false"]);
+  await click(noteButton(0));
+  expect(mocks.open).toHaveBeenCalledWith(notes(3)[0]);
+});
+
 test("suppresses the mouse click following a selection gesture while keeping keyboard and touch clicks", async () => {
   await render();
-  const checkbox = element('[data-history-index="0"]');
-  await pointer(checkbox, "pointerdown");
-  await pointer(checkbox, "pointerup");
+  const target = checkbox(0);
+  await pointer(target, "pointerdown");
+  await pointer(target, "pointerup");
   await act(async () =>
-    checkbox.dispatchEvent(
+    target.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
     ),
   );
   expect(checked(0)).toBe("true");
-  await click(checkbox);
+  await click(target);
   expect(checked(0)).toBe("false");
   await act(async () => {
-    checkbox.dispatchEvent(
+    target.dispatchEvent(
       new PointerEvent("pointerdown", {
         bubbles: true,
         pointerType: "touch",
         button: 0,
       }),
     );
-    checkbox.dispatchEvent(
+    target.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
     );
   });
   expect(checked(0)).toBe("true");
 });
 
-test("auto-scrolls at the checkbox edge and stops after releasing the pointer", async () => {
+test("auto-scrolls across the row width and stops after releasing the pointer", async () => {
   await render(notes(50));
   const list = element('[aria-label="History"]');
   vi.spyOn(list, "getBoundingClientRect").mockReturnValue(
     new DOMRect(0, 0, 300, 200),
   );
-  await pointer(element('[data-history-index="0"]'), "pointerdown", 15, 190);
-  await pointer(list, "pointermove", 15, 210);
-  hitTarget = element('[data-history-index="10"]');
+  await pointer(checkbox(0), "pointerdown", 15, 190);
+  await pointer(list, "pointermove", 200, 210);
+  hitTarget = noteButton(10);
   await act(async () => vi.advanceTimersByTimeAsync(64));
   expect(list.scrollTop).toBeGreaterThan(0);
-  expect(document.elementFromPoint).toHaveBeenLastCalledWith(15, 198);
+  expect(document.elementFromPoint).toHaveBeenLastCalledWith(200, 198);
   expect(checked(10)).toBe("true");
   await pointer(list, "pointerup");
   const position = list.scrollTop;
@@ -217,10 +244,10 @@ test("auto-scrolls at the checkbox edge and stops after releasing the pointer", 
 test("confirms all selected paths across searches and displays partial failures in one dialog", async () => {
   const first = notes(1, "first");
   const second = notes(1, "second");
-  await render(first);
-  await click(element('[data-history-index="0"]'));
-  await render(second, "second");
-  await click(element('[data-history-index="0"]'));
+  await render(first, "first", 2);
+  await click(checkbox(0));
+  await render(second, "second", 2);
+  await click(checkbox(0));
   await click(element('[aria-label="Delete"]'));
   let dialog = element('[role="alertdialog"]', document);
   expect(dialog.textContent).toContain(first[0].notePath);
@@ -251,6 +278,7 @@ test("confirms all selected paths across searches and displays partial failures 
   dialog = element('[role="alertdialog"]', document);
   expect(dialog.textContent).toContain("Permission denied");
   expect(dialog.textContent).toContain(second[0].notePath);
-  expect(container.textContent).toContain("1 selected");
+  await render(second, "second", 1);
+  expect(element('[aria-live="polite"]').textContent).toBe("1/1");
   expect(checked(0)).toBe("true");
 });

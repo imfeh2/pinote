@@ -84,6 +84,7 @@ interface HistorySectionProps {
   historyQuery: string;
   historyLoading: boolean;
   historyResults: NoteHistorySearchResult[];
+  historyTotal: number;
   historyOpeningPath: string | null;
   historyError: string | null;
   setHistoryQuery: (value: string) => void;
@@ -99,6 +100,7 @@ export function HistorySection({
   historyQuery,
   historyLoading,
   historyResults,
+  historyTotal,
   historyOpeningPath,
   historyError,
   setHistoryQuery,
@@ -131,7 +133,6 @@ export function HistorySection({
   ).length;
   const allChecked =
     resultPaths.length > 0 && selectedInResults === resultPaths.length;
-  const outsideCount = selected.size - selectedInResults;
   const loadMore = useCallback(() => {
     const list = listRef.current;
     if (!list || historyLoading || visibleCount >= historyResults.length)
@@ -258,18 +259,7 @@ export function HistorySection({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <input
-        ref={searchRef}
-        aria-label={t("history.searchPlaceholder")}
-        type="text"
-        value={historyQuery}
-        onChange={(event) => {
-          setHistoryQuery(event.target.value);
-        }}
-        placeholder={t("history.searchPlaceholder")}
-        className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-primary"
-      />
-      <div className="flex min-h-8 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <Checkbox
           aria-label={t("history.selectAll")}
           title={t("history.selectAll")}
@@ -278,17 +268,22 @@ export function HistorySection({
           }
           disabled={historyLoading || deleting || resultPaths.length === 0}
           onCheckedChange={() => setPathsChecked(resultPaths, !allChecked)}
+          className="h-8 w-9"
+        />
+        <input
+          ref={searchRef}
+          aria-label={t("history.searchPlaceholder")}
+          type="text"
+          value={historyQuery}
+          onChange={(event) => setHistoryQuery(event.target.value)}
+          placeholder={t("history.searchPlaceholder")}
+          className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-primary"
         />
         <span
-          className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+          className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground"
           aria-live="polite"
         >
-          {selected.size > 0
-            ? t("history.selectedCount", { count: selected.size })
-            : t("history.noteCount", { count: historyResults.length })}
-          {outsideCount > 0 && !historyLoading
-            ? ` · ${t("history.outsideCount", { count: outsideCount })}`
-            : ""}
+          {selected.size}/{historyTotal}
         </span>
         <button
           type="button"
@@ -348,23 +343,26 @@ export function HistorySection({
           historyResults.slice(0, visibleCount).map((item, index) => {
             const key = `${item.notePath}::${item.windowId}`;
             const opening = historyOpeningPath === item.notePath;
+            const checked = selected.has(item.notePath);
+            const { dir, file } = splitPath(item.notePath);
             return (
               <div
                 key={key}
+                data-history-index={index}
                 className={cn(
-                  "flex border-b border-border/70 last:border-b-0",
-                  selected.has(item.notePath) && "bg-primary/5",
+                  "flex border-b border-border/70 transition-colors last:border-b-0",
+                  checked ? "bg-selection" : "hover:bg-accent",
                 )}
               >
                 <Checkbox
-                  data-history-index={index}
+                  data-history-select
                   aria-label={t("history.selectNote", { path: item.notePath })}
-                  checked={selected.has(item.notePath)}
+                  checked={checked}
                   disabled={deleting}
                   onCheckedChange={(checked) =>
                     setPathsChecked([item.notePath], checked === true)
                   }
-                  className="h-auto w-9 self-stretch rounded-none touch-none"
+                  className="h-auto w-9 self-stretch rounded-none touch-none hover:bg-transparent"
                 />
                 <button
                   type="button"
@@ -390,23 +388,23 @@ export function HistorySection({
                     void onOpenHistoryItem(item);
                   }}
                   className={cn(
-                    "flex min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary",
+                    "flex min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-left focus-visible:outline-2 focus-visible:outline-primary",
                     opening && "cursor-not-allowed opacity-60",
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="flex min-w-0 flex-1 items-baseline gap-0.5">
+                    <div className="flex min-w-0 flex-1 items-baseline">
                       <span
                         className="min-w-0 truncate text-xs text-muted-foreground/80"
                         title={item.notePath}
                       >
-                        {splitPath(item.notePath).dir}
+                        {dir}
                       </span>
                       <span
                         className="shrink-0 truncate text-xs text-foreground"
                         title={item.notePath}
                       >
-                        {splitPath(item.notePath).file}
+                        {file}
                       </span>
                     </div>
                     {item.matchedByContent && (

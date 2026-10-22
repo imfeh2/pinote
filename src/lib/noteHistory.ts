@@ -21,6 +21,11 @@ export interface NoteHistorySearchResult extends NoteHistoryEntry {
   matchedByContent: boolean;
 }
 
+export interface NoteHistorySearchSnapshot {
+  results: NoteHistorySearchResult[];
+  total: number;
+}
+
 interface NoteHistoryStore {
   version: number;
   updatedAt: string;
@@ -242,14 +247,17 @@ export async function listNoteHistoryEntries() {
 
 export async function searchNoteHistory(
   query: string,
-): Promise<NoteHistorySearchResult[]> {
+): Promise<NoteHistorySearchSnapshot> {
   const normalizedQuery = query.trim().toLowerCase();
   const entries = await listNoteHistoryEntries();
   if (!normalizedQuery) {
-    return entries.map((entry) => ({
-      ...entry,
-      matchedByContent: false,
-    }));
+    return {
+      results: entries.map((entry) => ({
+        ...entry,
+        matchedByContent: false,
+      })),
+      total: entries.length,
+    };
   }
   const metadataMatches = entries.map((entry) => {
     return includesText(entry.notePath, normalizedQuery);
@@ -278,7 +286,7 @@ export async function searchNoteHistory(
       matchedByContent: contentMatches[index],
     });
   }
-  return results;
+  return { results, total: entries.length };
 }
 
 export interface NoteDeleteFailure {
