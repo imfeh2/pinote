@@ -238,6 +238,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         historyQuery=""
         historyLoading={false}
         historyResults={[item]}
+        onDeleted={() => {}}
         historyOpeningPath={null}
         historyError={null}
         setHistoryQuery={() => {}}
@@ -249,7 +250,9 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
       />,
     ),
   );
-  const itemButton = container.querySelector("button");
+  const itemButton = container.querySelector<HTMLButtonElement>(
+    "[data-history-open]",
+  );
   if (!itemButton) throw new Error("Missing history item");
   await act(async () => itemButton.focus());
   await act(async () => vi.advanceTimersByTimeAsync(300));
@@ -274,6 +277,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         historyQuery=""
         historyLoading={false}
         historyResults={[next]}
+        onDeleted={() => {}}
         historyOpeningPath={null}
         historyError={null}
         setHistoryQuery={() => {}}
@@ -285,7 +289,9 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
       />,
     ),
   );
-  const nextButton = container.querySelector("button");
+  const nextButton = container.querySelector<HTMLButtonElement>(
+    "[data-history-open]",
+  );
   if (!nextButton) throw new Error("Missing next history item");
   await act(async () => nextButton.focus());
   await act(async () => vi.advanceTimersByTimeAsync(300));

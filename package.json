@@ -41,6 +41,8 @@
     "@milkdown/kit": "^7.18.0",
     "@milkdown/react": "^7.18.0",
     "@milkdown/theme-nord": "^7.18.0",
+    "@radix-ui/react-alert-dialog": "^1.2.1",
+    "@radix-ui/react-checkbox": "^1.4.1",
     "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",

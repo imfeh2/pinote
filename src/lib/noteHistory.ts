@@ -4,8 +4,10 @@ import {
   mkdir,
   readTextFile,
   remove,
+  stat,
   writeTextFile,
 } from "@tauri-apps/plugin-fs";
+import { logError, logInfo } from "@/lib/logger";
 import { buildNoteCacheKey, getNoteIdFromPath } from "@/lib/notes";
 
 export interface NoteHistoryEntry {
@@ -31,8 +33,7 @@ const STORE_FILE = "history.json";
 const STORE_LOCK_DIR = "note-history.lock";
 const STORE_LOCK_RETRY_MS = 20;
 const STORE_LOCK_TIMEOUT_MS = 1000;
-const STORE_MAX_ENTRIES = 1000;
-const DEFAULT_SEARCH_LIMIT = 60;
+const CONTENT_SEARCH_BATCH_SIZE = 32;
 
 let mutationQueue = Promise.resolve();
 
@@ -196,16 +197,6 @@ function touchOrder(store: NoteHistoryStore, key: string) {
   store.order = [key, ...existing];
 }
 
-function trimOverflow(store: NoteHistoryStore) {
-  if (store.order.length <= STORE_MAX_ENTRIES) return;
-  const keep = new Set(store.order.slice(0, STORE_MAX_ENTRIES));
-  store.order = store.order.slice(0, STORE_MAX_ENTRIES);
-  for (const key of Object.keys(store.entries)) {
-    if (keep.has(key)) continue;
-    delete store.entries[key];
-  }
-}
-
 function includesText(value: string, query: string) {
   return value.toLowerCase().includes(query);
 }
@@ -238,7 +229,6 @@ export async function recordOpenedNote(params: {
       lastOpenedAt: now,
     };
     touchOrder(store, key);
-    trimOverflow(store);
     store.updatedAt = now;
   });
 }
@@ -252,13 +242,11 @@ export async function listNoteHistoryEntries() {
 
 export async function searchNoteHistory(
   query: string,
-  options: { limit?: number } = {},
 ): Promise<NoteHistorySearchResult[]> {
-  const limit = Math.max(1, options.limit ?? DEFAULT_SEARCH_LIMIT);
   const normalizedQuery = query.trim().toLowerCase();
   const entries = await listNoteHistoryEntries();
   if (!normalizedQuery) {
-    return entries.slice(0, limit).map((entry) => ({
+    return entries.map((entry) => ({
       ...entry,
       matchedByContent: false,
     }));
@@ -266,12 +254,22 @@ export async function searchNoteHistory(
   const metadataMatches = entries.map((entry) => {
     return includesText(entry.notePath, normalizedQuery);
   });
-  const contentMatches = await Promise.all(
-    entries.map((entry, index) => {
-      if (metadataMatches[index]) return Promise.resolve(false);
-      return checkContentMatch(entry.notePath, normalizedQuery);
-    }),
-  );
+  const contentMatches: boolean[] = [];
+  for (
+    let start = 0;
+    start < entries.length;
+    start += CONTENT_SEARCH_BATCH_SIZE
+  ) {
+    const matches = await Promise.all(
+      entries
+        .slice(start, start + CONTENT_SEARCH_BATCH_SIZE)
+        .map((entry, index) => {
+          if (metadataMatches[start + index]) return false;
+          return checkContentMatch(entry.notePath, normalizedQuery);
+        }),
+    );
+    contentMatches.push(...matches);
+  }
   const results: NoteHistorySearchResult[] = [];
   for (let index = 0; index < entries.length; index += 1) {
     if (!metadataMatches[index] && !contentMatches[index]) continue;
@@ -279,7 +277,54 @@ export async function searchNoteHistory(
       ...entries[index],
       matchedByContent: contentMatches[index],
     });
-    if (results.length >= limit) break;
   }
   return results;
+}
+
+export interface NoteDeleteFailure {
+  notePath: string;
+  reason: string;
+}
+
+export async function deleteHistoryNotes(notePaths: string[]) {
+  const entries = await listNoteHistoryEntries();
+  const knownPaths = new Set(entries.map((entry) => entry.notePath));
+  const deleted: string[] = [];
+  const failures: NoteDeleteFailure[] = [];
+  logInfo("history", "delete_requested", { count: notePaths.length });
+  for (const notePath of new Set(notePaths)) {
+    try {
+      if (!knownPaths.has(notePath))
+        throw new Error("Note is no longer in history.");
+      if (await exists(notePath)) {
+        const metadata = await stat(notePath);
+        if (!metadata.isFile) throw new Error("The path is not a file.");
+        await remove(notePath);
+      }
+      deleted.push(notePath);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      failures.push({ notePath, reason });
+      logError("history", "delete_failed", error, { notePath });
+    }
+  }
+  if (deleted.length > 0) {
+    const deletedPaths = new Set(deleted);
+    try {
+      await mutateStore((store) => {
+        for (const [key, entry] of Object.entries(store.entries)) {
+          if (deletedPaths.has(entry.notePath)) delete store.entries[key];
+        }
+        store.order = store.order.filter((key) => Boolean(store.entries[key]));
+        store.updatedAt = new Date().toISOString();
+      });
+    } catch (error) {
+      const reason = `Could not update history: ${error instanceof Error ? error.message : String(error)}`;
+      failures.push(...deleted.map((notePath) => ({ notePath, reason })));
+      deleted.length = 0;
+      logError("history", "delete_history_update_failed", error);
+    }
+  }
+  logInfo("history", "delete_finished", { deleted, failed: failures.length });
+  return { deleted, failures };
 }

@@ -9,9 +9,11 @@ import { gfm } from "@milkdown/kit/preset/gfm";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { nord } from "@milkdown/theme-nord";
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import { ListX, LoaderCircle, Trash2 } from "lucide-react";
 import {
   type CSSProperties,
   type KeyboardEvent,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -19,12 +21,20 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { NoteHistorySearchResult } from "@/lib/noteHistory";
+import { AlertDialog } from "@/components/AlertDialog";
+import { Checkbox } from "@/components/Checkbox";
+import { useHistorySelection } from "@/hooks/useHistorySelection";
+import {
+  deleteHistoryNotes,
+  type NoteDeleteFailure,
+  type NoteHistorySearchResult,
+} from "@/lib/noteHistory";
 import { cn } from "@/lib/utils";
 import type { EditorFontFamily } from "@/stores/settings";
 
 const PREVIEW_DELAY_MS = 300;
 const PREVIEW_HIDE_DELAY_MS = 200;
+const HISTORY_BATCH_SIZE = 40;
 
 function resolveEditorFontFamily(value: EditorFontFamily) {
   if (value === "serif") {
@@ -78,6 +88,7 @@ interface HistorySectionProps {
   historyError: string | null;
   setHistoryQuery: (value: string) => void;
   onOpenHistoryItem: (item: NoteHistorySearchResult) => Promise<void>;
+  onDeleted: (paths: string[]) => void;
   formatDateTime: (value: string) => string;
   editorFontFamily: EditorFontFamily;
   editorFontSize: number;
@@ -92,12 +103,54 @@ export function HistorySection({
   historyError,
   setHistoryQuery,
   onOpenHistoryItem,
+  onDeleted,
   formatDateTime,
   editorFontFamily,
   editorFontSize,
   editorLineHeight,
 }: HistorySectionProps) {
   const { t } = useTranslation("settings");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletePaths, setDeletePaths] = useState<string[] | null>(null);
+  const [deleteFailures, setDeleteFailures] = useState<NoteDeleteFailure[]>([]);
+  const selection = useHistorySelection(
+    historyResults,
+    historyLoading || deleting || deletePaths !== null,
+  );
+  const { selected, setSelected, setPathsChecked, listRef } = selection;
+  const [visible, setVisible] = useState({
+    results: historyResults,
+    count: HISTORY_BATCH_SIZE,
+  });
+  const visibleCount =
+    visible.results === historyResults ? visible.count : HISTORY_BATCH_SIZE;
+  const resultPaths = historyResults.map((item) => item.notePath);
+  const selectedInResults = resultPaths.filter((path) =>
+    selected.has(path),
+  ).length;
+  const allChecked =
+    resultPaths.length > 0 && selectedInResults === resultPaths.length;
+  const outsideCount = selected.size - selectedInResults;
+  const loadMore = useCallback(() => {
+    const list = listRef.current;
+    if (!list || historyLoading || visibleCount >= historyResults.length)
+      return;
+    if (
+      list.clientHeight > 0 &&
+      list.scrollHeight - list.scrollTop - list.clientHeight < 120
+    ) {
+      setVisible({
+        results: historyResults,
+        count: visibleCount + HISTORY_BATCH_SIZE,
+      });
+    }
+  }, [historyResults, historyLoading, visibleCount, listRef]);
+  useEffect(() => {
+    loadMore();
+    window.addEventListener("resize", loadMore);
+    return () => window.removeEventListener("resize", loadMore);
+  }, [loadMore]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const previewId = useId();
   const previewRequestRef = useRef(0);
@@ -177,6 +230,26 @@ export function HistorySection({
     );
   };
 
+  const handleDelete = async () => {
+    if (!deletePaths || deleting) return;
+    setDeleting(true);
+    previewRequestRef.current += 1;
+    setPreview(null);
+    try {
+      const { deleted, failures } = await deleteHistoryNotes(deletePaths);
+      setPathsChecked(deleted, false);
+      for (const path of deleted) previewCacheRef.current.delete(path);
+      onDeleted(deleted);
+      setDeleteFailures(failures);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      setDeleteFailures(deletePaths.map((notePath) => ({ notePath, reason })));
+    } finally {
+      setDeleting(false);
+      setDeletePaths(null);
+    }
+  };
+
   const handlePreviewKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== "Escape") return;
     cancelPreview();
@@ -186,6 +259,8 @@ export function HistorySection({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <input
+        ref={searchRef}
+        aria-label={t("history.searchPlaceholder")}
         type="text"
         value={historyQuery}
         onChange={(event) => {
@@ -194,7 +269,73 @@ export function HistorySection({
         placeholder={t("history.searchPlaceholder")}
         className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-primary"
       />
-      <div className="pinote-scrollbar min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background/70">
+      <div className="flex min-h-8 items-center gap-2">
+        <Checkbox
+          aria-label={t("history.selectAll")}
+          title={t("history.selectAll")}
+          checked={
+            allChecked ? true : selectedInResults > 0 ? "indeterminate" : false
+          }
+          disabled={historyLoading || deleting || resultPaths.length === 0}
+          onCheckedChange={() => setPathsChecked(resultPaths, !allChecked)}
+        />
+        <span
+          className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          {selected.size > 0
+            ? t("history.selectedCount", { count: selected.size })
+            : t("history.noteCount", { count: historyResults.length })}
+          {outsideCount > 0 && !historyLoading
+            ? ` · ${t("history.outsideCount", { count: outsideCount })}`
+            : ""}
+        </span>
+        <button
+          type="button"
+          aria-label={t("history.clearSelection")}
+          title={t("history.clearSelection")}
+          disabled={selected.size === 0 || deleting}
+          onClick={() => setSelected(new Set())}
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-30"
+        >
+          <ListX size={16} />
+        </button>
+        <button
+          type="button"
+          aria-label={t("history.delete")}
+          title={t("history.delete")}
+          disabled={
+            selected.size === 0 || deleting || historyOpeningPath !== null
+          }
+          onClick={() => {
+            cancelPreview();
+            setPreview(null);
+            setDeletePaths([...selected]);
+          }}
+          className="flex size-8 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-30"
+        >
+          {deleting ? (
+            <LoaderCircle size={16} className="animate-spin" />
+          ) : (
+            <Trash2 size={16} />
+          )}
+        </button>
+      </div>
+      <section
+        ref={listRef}
+        aria-label={t("sections.history.label")}
+        className="pinote-scrollbar min-h-0 flex-1 overflow-y-auto rounded-md border border-border bg-background/70"
+        onScroll={() => {
+          cancelPreview();
+          loadMore();
+        }}
+        onPointerDown={selection.onPointerDown}
+        onPointerMove={selection.onPointerMove}
+        onPointerUp={selection.stopDrag}
+        onPointerCancel={selection.stopDrag}
+        onLostPointerCapture={selection.stopDrag}
+        onClickCapture={selection.onClickCapture}
+      >
         {historyLoading ? (
           <div className="px-2 py-2 text-xs text-muted-foreground">
             {t("history.searching")}
@@ -204,69 +345,129 @@ export function HistorySection({
             {t("history.noResults")}
           </div>
         ) : (
-          historyResults.map((item) => {
+          historyResults.slice(0, visibleCount).map((item, index) => {
             const key = `${item.notePath}::${item.windowId}`;
             const opening = historyOpeningPath === item.notePath;
             return (
-              <button
+              <div
                 key={key}
-                type="button"
-                disabled={opening}
-                aria-describedby={
-                  preview?.notePath === item.notePath ? previewId : undefined
-                }
-                onFocus={(event) => {
-                  const bounds = event.currentTarget.getBoundingClientRect();
-                  schedulePreview(item, bounds.left, bounds.bottom);
-                }}
-                onBlur={cancelPreview}
-                onKeyDown={handlePreviewKeyDown}
-                onMouseEnter={(event) => {
-                  schedulePreview(item, event.clientX, event.clientY);
-                }}
-                onMouseLeave={(event) => {
-                  if (event.currentTarget !== document.activeElement)
-                    cancelPreview();
-                }}
-                onClick={() => {
-                  void onOpenHistoryItem(item);
-                }}
                 className={cn(
-                  "flex w-full flex-col gap-1 border-b border-border/70 px-2 py-2 text-left transition-colors last:border-b-0 hover:bg-accent",
-                  opening && "cursor-not-allowed opacity-60",
+                  "flex border-b border-border/70 last:border-b-0",
+                  selected.has(item.notePath) && "bg-primary/5",
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <div className="flex min-w-0 flex-1 items-baseline gap-0.5">
-                    <span
-                      className="min-w-0 truncate text-xs text-muted-foreground/80"
-                      title={item.notePath}
-                    >
-                      {splitPath(item.notePath).dir}
-                    </span>
-                    <span
-                      className="shrink-0 truncate text-xs text-foreground"
-                      title={item.notePath}
-                    >
-                      {splitPath(item.notePath).file}
-                    </span>
-                  </div>
-                  {item.matchedByContent && (
-                    <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {t("history.contentMatch")}
-                    </span>
+                <Checkbox
+                  data-history-index={index}
+                  aria-label={t("history.selectNote", { path: item.notePath })}
+                  checked={selected.has(item.notePath)}
+                  disabled={deleting}
+                  onCheckedChange={(checked) =>
+                    setPathsChecked([item.notePath], checked === true)
+                  }
+                  className="h-auto w-9 self-stretch rounded-none touch-none"
+                />
+                <button
+                  type="button"
+                  data-history-open={item.notePath}
+                  disabled={opening || deleting}
+                  aria-describedby={
+                    preview?.notePath === item.notePath ? previewId : undefined
+                  }
+                  onFocus={(event) => {
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    schedulePreview(item, bounds.left, bounds.bottom);
+                  }}
+                  onBlur={cancelPreview}
+                  onKeyDown={handlePreviewKeyDown}
+                  onMouseEnter={(event) => {
+                    schedulePreview(item, event.clientX, event.clientY);
+                  }}
+                  onMouseLeave={(event) => {
+                    if (event.currentTarget !== document.activeElement)
+                      cancelPreview();
+                  }}
+                  onClick={() => {
+                    void onOpenHistoryItem(item);
+                  }}
+                  className={cn(
+                    "flex min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary",
+                    opening && "cursor-not-allowed opacity-60",
                   )}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t("history.lastOpened", {
-                    date: formatDateTime(item.lastOpenedAt),
-                  })}
-                </div>
-              </button>
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-baseline gap-0.5">
+                      <span
+                        className="min-w-0 truncate text-xs text-muted-foreground/80"
+                        title={item.notePath}
+                      >
+                        {splitPath(item.notePath).dir}
+                      </span>
+                      <span
+                        className="shrink-0 truncate text-xs text-foreground"
+                        title={item.notePath}
+                      >
+                        {splitPath(item.notePath).file}
+                      </span>
+                    </div>
+                    {item.matchedByContent && (
+                      <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {t("history.contentMatch")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {t("history.lastOpened", {
+                      date: formatDateTime(item.lastOpenedAt),
+                    })}
+                  </div>
+                </button>
+              </div>
             );
           })
         )}
-      </div>
+      </section>
+      <AlertDialog
+        open={deletePaths !== null}
+        title={t("history.deleteTitle", { count: deletePaths?.length ?? 0 })}
+        description={t("history.deleteDescription")}
+        cancelLabel={t("history.cancel")}
+        actionLabel={t(deleting ? "history.deleting" : "history.delete")}
+        busy={deleting}
+        returnFocusRef={searchRef}
+        onClose={() => setDeletePaths(null)}
+        onAction={() => void handleDelete()}
+      >
+        <ul className="pinote-scrollbar min-h-0 overflow-y-auto rounded-md border border-border text-xs">
+          {deletePaths?.map((path) => (
+            <li
+              key={path}
+              className="break-all border-b border-border px-3 py-2 last:border-0"
+            >
+              {path}
+            </li>
+          ))}
+        </ul>
+      </AlertDialog>
+      <AlertDialog
+        open={deleteFailures.length > 0}
+        title={t("history.deleteFailed")}
+        description={t("history.deleteFailedDescription")}
+        cancelLabel={t("history.close")}
+        returnFocusRef={searchRef}
+        onClose={() => setDeleteFailures([])}
+      >
+        <ul className="pinote-scrollbar min-h-0 overflow-y-auto rounded-md border border-border text-xs">
+          {deleteFailures.map(({ notePath, reason }) => (
+            <li
+              key={notePath}
+              className="space-y-1 break-all border-b border-border px-3 py-2 last:border-0"
+            >
+              <div>{notePath}</div>
+              <div className="text-destructive">{reason}</div>
+            </li>
+          ))}
+        </ul>
+      </AlertDialog>
       {preview &&
         createPortal(
           <aside

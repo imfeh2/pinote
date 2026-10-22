@@ -53,7 +53,6 @@ import {
 import { openAndTrackNoteWindow } from "@/lib/windowManager";
 
 const REPOSITORY_URL = "https://github.com/imfeh2/pinote";
-const HISTORY_SEARCH_LIMIT = 80;
 const HISTORY_SEARCH_DEBOUNCE_MS = 120;
 const settingsSections = new Set<SettingsSection>(
   sections.map((section) => section.id),
@@ -570,9 +569,9 @@ export function SettingsApp() {
     if (activeSection !== "history") return;
     let active = true;
     const requestVersion = historyReloadToken;
+    setHistoryLoading(true);
     const timer = window.setTimeout(() => {
-      setHistoryLoading(true);
-      searchNoteHistory(historyQuery, { limit: HISTORY_SEARCH_LIMIT })
+      searchNoteHistory(historyQuery)
         .then((results) => {
           if (!active || requestVersion !== historyReloadToken) return;
           setHistoryResults(results);
@@ -745,6 +744,13 @@ export function SettingsApp() {
         historyError={historyError}
         setHistoryQuery={setHistoryQuery}
         onOpenHistoryItem={handleOpenHistoryItem}
+        onDeleted={(paths) => {
+          const deleted = new Set(paths);
+          setHistoryResults((current) =>
+            current.filter((item) => !deleted.has(item.notePath)),
+          );
+          setHistoryReloadToken((value) => value + 1);
+        }}
         formatDateTime={(value) =>
           formatDateTime(value, i18n.resolvedLanguage ?? "en-US")
         }
