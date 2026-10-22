@@ -309,7 +309,7 @@ export function HistorySection({
             setPreview(null);
             setDeletePaths([...selected]);
           }}
-          className="flex size-8 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-30"
+          className="flex size-8 items-center justify-center rounded-md text-destructive transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-30"
         >
           {deleting ? (
             <LoaderCircle size={16} className="animate-spin" />

@@ -166,10 +166,12 @@ test("drag selects across whole rows using the starting checkbox state without r
   await render(notes(5));
   await click(checkbox(2));
   await pointer(checkbox(0), "pointerdown");
+  expect(element('[aria-label="History"]').style.cursor).toBe("pointer");
   await pointer(noteButton(3), "pointermove", 200);
   await pointer(element("span", noteButton(1)), "pointermove", 180);
   expect([0, 1, 2, 3].map(checked)).toEqual(["true", "true", "true", "true"]);
   await pointer(noteButton(1), "pointerup", 180);
+  expect(element('[aria-label="History"]').style.cursor).toBe("");
   await act(async () =>
     noteButton(1).dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
@@ -187,6 +189,21 @@ test("drag selects across whole rows using the starting checkbox state without r
     "false",
   ]);
   expect(mocks.open).not.toHaveBeenCalled();
+});
+
+test("restores the cursor when selection is cancelled, blurred, or replaced", async () => {
+  await render();
+  const list = element('[aria-label="History"]');
+  await pointer(checkbox(0), "pointerdown");
+  expect(list.style.cursor).toBe("pointer");
+  await pointer(list, "pointercancel");
+  expect(list.style.cursor).toBe("");
+  await pointer(checkbox(0), "pointerdown");
+  await act(async () => window.dispatchEvent(new Event("blur")));
+  expect(list.style.cursor).toBe("");
+  await pointer(checkbox(0), "pointerdown");
+  await render(notes(2, "other"));
+  expect(list.style.cursor).toBe("");
 });
 
 test("clicking a note opens it without starting selection", async () => {

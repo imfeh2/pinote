@@ -33,8 +33,11 @@ export function useHistorySelection(
     dragRef.current = null;
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     frameRef.current = null;
-    if (drag && listRef.current?.hasPointerCapture(drag.pointerId)) {
-      listRef.current.releasePointerCapture(drag.pointerId);
+    if (drag && listRef.current) {
+      listRef.current.style.removeProperty("cursor");
+      if (listRef.current.hasPointerCapture(drag.pointerId)) {
+        listRef.current.releasePointerCapture(drag.pointerId);
+      }
     }
   }, []);
 
@@ -125,6 +128,7 @@ export function useHistorySelection(
     stopDrag();
     target.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.style.cursor = "pointer";
     dragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
