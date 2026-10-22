@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib", "staticlib"]
 name = "pinote_lib"
 
 [dependencies]
+chrono = "0.4.45"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,6 +30,7 @@ tauri-plugin-os = "2"
 tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
+tempfile = "3.27.0"
 uuid = { version = "1", features = ["v4"] }
 zip = { version = "4", default-features = false }
 

@@ -1,4 +1,5 @@
 mod locale;
+mod note_history;
 mod shortcut;
 mod tray;
 mod window;
@@ -1096,6 +1097,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            note_history::list_note_history,
+            note_history::record_note_history,
+            note_history::delete_history_notes,
             load_window_state_cache,
             get_window_state,
             get_window_state_by_note_path,
@@ -1143,6 +1147,9 @@ pub fn run() {
                 ])
                 .build();
             handle.plugin(log_plugin)?;
+            handle.manage(note_history::NoteHistoryStore::new(
+                handle.path().app_data_dir()?.join("history.json"),
+            ));
             let system_environment = collect_system_environment(&handle);
             info!("system_environment {}", system_environment);
             let stored_settings = load_stored_settings(&handle);
