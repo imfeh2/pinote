@@ -1,6 +1,6 @@
 [package]
 name = "pinote"
-version = "0.6.2"
+version = "0.6.3"
 description = "A lightweight floating markdown scratchpad app"
 authors = ["ImFeH2 <i@feh2.im>"]
 repository = "https://github.com/imfeh2/pinote"
