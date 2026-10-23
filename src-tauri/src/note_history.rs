@@ -9,7 +9,7 @@ use std::{
     time::Instant,
 };
 use tauri::Manager;
-use tempfile::NamedTempFile;
+use tempfile::Builder;
 use uuid::Uuid;
 
 const HISTORY_VERSION: u32 = 1;
@@ -137,15 +137,27 @@ impl NoteHistoryStore {
                 .map_err(|error| format!("Could not create history directory: {error}"))?;
             let content = serde_json::to_vec_pretty(history)
                 .map_err(|error| format!("Could not serialize history: {error}"))?;
-            let mut file = NamedTempFile::new_in(parent)
+            // 临时路径使用普通文件属性，供后续原子替换。
+            let mut file = Builder::new()
+                .make_in(parent, |path| {
+                    let mut options = fs::OpenOptions::new();
+                    options.read(true).write(true).create_new(true);
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::OpenOptionsExt;
+                        options.mode(0o600);
+                    }
+                    options.open(path)
+                })
                 .map_err(|error| format!("Could not create history temporary file: {error}"))?;
             file.write_all(&content)
                 .map_err(|error| format!("Could not write history: {error}"))?;
             file.as_file()
                 .sync_all()
                 .map_err(|error| format!("Could not synchronize history: {error}"))?;
-            file.persist(&self.path)
-                .map_err(|error| format!("Could not replace history: {}", error.error))?;
+            fs::rename(file.path(), &self.path)
+                .map_err(|error| format!("Could not replace history: {error}"))?;
+            file.disable_cleanup(true);
             log::info!(
                 "history_saved operation_id={operation_id} entries={} bytes={}",
                 history.entries.len(),
@@ -556,6 +568,48 @@ mod tests {
                 .len(),
             1017
         );
+    }
+
+    #[test]
+    fn replacement_preserves_open_readers_and_file_attributes() {
+        use std::io::Read;
+
+        let dir = directory();
+        let store = NoteHistoryStore::new(dir.path().join("history.json"));
+        seed(&store, 1);
+        let original = fs::read(&store.path).unwrap();
+        let mut reader = fs::File::open(&store.path).unwrap();
+        let new_note = dir.path().join("new.md");
+        store.record(params(&new_note), "writer").unwrap();
+
+        let mut retained = Vec::new();
+        reader.read_to_end(&mut retained).unwrap();
+        assert_eq!(retained, original);
+        let history = store.list("reader").unwrap();
+        assert_eq!(history.len(), 2);
+        assert!(
+            history
+                .iter()
+                .any(|entry| entry.note_path == new_note.to_str().unwrap())
+        );
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x100;
+            assert_eq!(
+                fs::metadata(&store.path).unwrap().file_attributes() & FILE_ATTRIBUTE_TEMPORARY,
+                0
+            );
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(&store.path).unwrap().permissions().mode() & 0o077,
+                0
+            );
+        }
     }
 
     #[test]
