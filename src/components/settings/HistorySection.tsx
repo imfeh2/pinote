@@ -261,7 +261,7 @@ export function HistorySection({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 px-px">
         <Checkbox
           aria-label={t("history.selectAll")}
           title={t("history.selectAll")}
@@ -390,7 +390,7 @@ export function HistorySection({
                     void onOpenHistoryItem(item);
                   }}
                   className={cn(
-                    "flex min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-left focus-visible:outline-2 focus-visible:outline-primary",
+                    "flex min-w-0 flex-1 flex-col gap-1 py-2 pr-2 text-left focus-visible:outline-2 focus-visible:outline-primary",
                     opening && "cursor-not-allowed opacity-60",
                   )}
                 >

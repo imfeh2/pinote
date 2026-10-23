@@ -59,7 +59,7 @@ export function AlertDialog({
           <div className="flex flex-wrap justify-end gap-2">
             <AlertDialogPrimitive.Cancel
               disabled={busy}
-              className="h-8 rounded-md border border-border px-3 text-xs hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
+              className="h-8 cursor-pointer rounded-md border border-border px-3 text-xs hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
               {cancelLabel}
             </AlertDialogPrimitive.Cancel>
@@ -72,7 +72,7 @@ export function AlertDialog({
                   onAction();
                 }}
                 className={cn(
-                  "h-8 rounded-md border px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40",
+                  "h-8 cursor-pointer rounded-md border px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40",
                   destructive
                     ? "border-transparent bg-destructive text-white hover:opacity-90"
                     : "border-border hover:bg-accent",
