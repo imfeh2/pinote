@@ -122,7 +122,8 @@ impl NoteHistoryStore {
             }
             Err(error) => return Err(format!("Could not read history: {error}")),
         };
-        let mut history: HistoryFile = serde_json::from_slice(&content).map_err(|error| {
+        let json = content.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&content);
+        let mut history: HistoryFile = serde_json::from_slice(json).map_err(|error| {
             format!("Could not parse history ({} bytes): {error}", content.len())
         })?;
         history.validate()?;
@@ -480,6 +481,44 @@ mod tests {
     }
 
     #[test]
+    fn reads_records_and_deletes_history_with_or_without_utf8_bom() {
+        let dir = directory();
+        let store = NoteHistoryStore::new(dir.path().join("history.json"));
+        let note = dir.path().join("0.md");
+        let new_note = dir.path().join("new.md");
+        for prefix in [b"".as_slice(), b"\xef\xbb\xbf".as_slice()] {
+            seed(&store, 1);
+            fs::write(&note, "content").unwrap();
+            let original = fs::read(&store.path).unwrap();
+            let encoded = [prefix, original.as_slice()].concat();
+            fs::write(&store.path, &encoded).unwrap();
+            let entries = store.list("reader").unwrap();
+            assert_eq!(entries.len(), 1);
+            assert_eq!(entries[0].note_path, note.to_str().unwrap());
+            assert_eq!(store.read().unwrap().1, encoded.len());
+            assert_eq!(fs::read(&store.path).unwrap(), encoded);
+
+            store.record(params(&new_note), "writer").unwrap();
+            let saved = fs::read(&store.path).unwrap();
+            let history: HistoryFile = serde_json::from_slice(&saved).unwrap();
+            assert_eq!(history.entries.len(), 2);
+            assert!(!saved.starts_with(b"\xef\xbb\xbf"));
+            assert_eq!(fs::read_to_string(&note).unwrap(), "content");
+
+            fs::write(&store.path, [prefix, saved.as_slice()].concat()).unwrap();
+            let result = store
+                .delete(vec![note.to_str().unwrap().to_string()], "settings")
+                .unwrap();
+            assert_eq!(result.deleted, vec![note.to_str().unwrap()]);
+            assert!(result.failures.is_empty());
+            assert!(!note.exists());
+            let entries = store.list("reader").unwrap();
+            assert_eq!(entries.len(), 1);
+            assert_eq!(entries[0].note_path, new_note.to_str().unwrap());
+        }
+    }
+
+    #[test]
     fn concurrent_operations_preserve_complete_history_and_valid_json() {
         let dir = directory();
         let store = Arc::new(NoteHistoryStore::new(dir.path().join("history.json")));
@@ -566,17 +605,22 @@ mod tests {
             r#"{"version":2,"updatedAt":"now","entries":{},"order":[]}"#,
             r#"{"version":1,"updatedAt":"now","entries":{"key":{"notePath":"","noteId":"id","windowId":"window","lastOpenedAt":"now"}},"order":["key"]}"#,
             r#"{"version":1,"updatedAt":"now","order":[]}"#,
+            "\u{feff}\u{feff}{\"version\":1,\"updatedAt\":\"now\",\"entries\":{},\"order\":[]}",
+            " \u{feff}{\"version\":1,\"updatedAt\":\"now\",\"entries\":{},\"order\":[]}",
         ] {
-            fs::write(&store.path, content).unwrap();
-            assert!(store.list("reader").is_err());
-            assert!(store.record(params(&note), "writer").is_err());
-            assert!(
-                store
-                    .delete(vec![note.to_str().unwrap().to_string()], "settings")
-                    .is_err()
-            );
-            assert_eq!(fs::read_to_string(&store.path).unwrap(), content);
-            assert_eq!(fs::read_to_string(&note).unwrap(), "content");
+            for prefix in ["", "\u{feff}"] {
+                let content = format!("{prefix}{content}");
+                fs::write(&store.path, &content).unwrap();
+                assert!(store.list("reader").is_err());
+                assert!(store.record(params(&note), "writer").is_err());
+                assert!(
+                    store
+                        .delete(vec![note.to_str().unwrap().to_string()], "settings")
+                        .is_err()
+                );
+                assert_eq!(fs::read_to_string(&store.path).unwrap(), content);
+                assert_eq!(fs::read_to_string(&note).unwrap(), "content");
+            }
         }
     }
 
