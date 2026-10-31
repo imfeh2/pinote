@@ -9,6 +9,7 @@ const contextMenu = {
   disableReadOnly: "关闭只读",
   hideWindow: "隐藏",
   closeWindow: "关闭",
+  deleteNote: "删除",
 } as const;
 
 export default contextMenu;

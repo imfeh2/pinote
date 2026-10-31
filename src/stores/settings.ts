@@ -56,6 +56,7 @@ export interface Settings {
     toggleTheme: string;
     hideWindow: string;
     closeWindow: string;
+    deleteNote: string;
   };
 }
 
@@ -90,6 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
     toggleTheme: "Ctrl+Shift+D",
     hideWindow: "Escape",
     closeWindow: "Ctrl+Shift+W",
+    deleteNote: "Alt+Y",
   },
 };
 

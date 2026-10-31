@@ -1,6 +1,6 @@
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import type { ReactNode, RefObject } from "react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/Button";
 
 interface AlertDialogProps {
   open: boolean;
@@ -40,7 +40,7 @@ export function AlertDialog({
         <AlertDialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <AlertDialogPrimitive.Content
           aria-busy={busy}
-          className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border border-border bg-background p-4 text-foreground shadow-xl"
+          className="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground shadow-xl"
           onEscapeKeyDown={(event) => {
             if (busy) event.preventDefault();
           }}
@@ -49,36 +49,30 @@ export function AlertDialog({
             returnFocusRef.current?.focus();
           }}
         >
-          <AlertDialogPrimitive.Title className="text-sm font-semibold">
+          <AlertDialogPrimitive.Title className="shrink-0 break-words text-sm font-semibold">
             {title}
           </AlertDialogPrimitive.Title>
-          <AlertDialogPrimitive.Description className="text-xs text-muted-foreground">
+          <AlertDialogPrimitive.Description className="shrink-0 break-words text-xs text-muted-foreground">
             {description}
           </AlertDialogPrimitive.Description>
           {children}
-          <div className="flex flex-wrap justify-end gap-2">
-            <AlertDialogPrimitive.Cancel
-              disabled={busy}
-              className="h-8 cursor-pointer rounded-md border border-border px-3 text-xs hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {cancelLabel}
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <AlertDialogPrimitive.Cancel asChild disabled={busy}>
+              <Button>{cancelLabel}</Button>
             </AlertDialogPrimitive.Cancel>
             {actions.map(({ label, destructive, onAction }) => (
               <AlertDialogPrimitive.Action
                 key={label}
+                asChild
                 disabled={busy}
                 onClick={(event) => {
                   event.preventDefault();
                   onAction();
                 }}
-                className={cn(
-                  "h-8 cursor-pointer rounded-md border px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40",
-                  destructive
-                    ? "border-transparent bg-destructive text-white hover:opacity-90"
-                    : "border-border hover:bg-accent",
-                )}
               >
-                {label}
+                <Button variant={destructive ? "destructive" : "default"}>
+                  {label}
+                </Button>
               </AlertDialogPrimitive.Action>
             ))}
           </div>

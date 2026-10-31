@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { readTextFile } from "@tauri-apps/plugin-fs";
-import { getNoteIdFromPath } from "@/lib/notes";
+import type { FileSnapshot } from "@/lib/workingCopy";
 
 export interface NoteHistoryEntry {
   notePath: string;
@@ -36,28 +35,13 @@ function includesText(value: string, query: string) {
 
 async function checkContentMatch(notePath: string, query: string) {
   try {
-    const content = await readTextFile(notePath);
+    const { content } = await invoke<FileSnapshot>("read_note_file", {
+      notePath,
+    });
     return includesText(content, query);
   } catch {
     return false;
   }
-}
-
-export async function recordOpenedNote(params: {
-  notePath: string;
-  noteId: string;
-  windowId: string;
-}) {
-  const notePath = params.notePath.trim();
-  const windowId = params.windowId.trim();
-  if (!notePath || !windowId) return;
-  await invoke<void>("record_note_history", {
-    params: {
-      notePath,
-      noteId: params.noteId.trim() || getNoteIdFromPath(notePath),
-      windowId,
-    },
-  });
 }
 
 export function listNoteHistoryEntries() {

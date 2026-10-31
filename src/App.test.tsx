@@ -6,10 +6,8 @@ import { expect, test, vi } from "vitest";
 import App from "@/App";
 
 const mocks = vi.hoisted(() => ({
-  ready: true,
   toggle: vi.fn<() => Promise<boolean>>(),
-  persist: vi.fn<() => Promise<void>>(),
-  load: vi.fn(async () => "Note"),
+  persist: vi.fn<() => Promise<boolean>>(),
   noop: () => {},
   toggleFromActions: null as (() => Promise<void> | void) | null,
 }));
@@ -47,27 +45,15 @@ vi.mock("@/hooks/useNoteWindowState", () => ({
     initialEditorScrollTop: 0,
     persistWindowState: mocks.persist,
     setInitialEditorScrollTop: mocks.noop,
-    windowStateReady: mocks.ready,
   }),
 }));
-vi.mock("@/hooks/useNoteExternalSync", () => ({
-  useNoteExternalSync: ({
-    setInitialContent,
-  }: {
-    setInitialContent: (value: string) => void;
-  }) => ({
-    applyLoadedContent: setInitialContent,
-    dismissExternalFileChange: mocks.noop,
-    handlePersistedContent: mocks.noop,
-    hasExternalFileChange: false,
-    reloadExternalFileContent: mocks.noop,
-  }),
-}));
-vi.mock("@/hooks/useAutoSave", () => ({
-  useAutoSave: () => ({
-    save: mocks.noop,
-    load: mocks.load,
-    isSavePending: () => false,
+vi.mock("@/hooks/useWorkingCopy", () => ({
+  useWorkingCopy: () => ({
+    phase: "ready",
+    content: "Note",
+    external: null,
+    error: null,
+    reload: 0,
   }),
 }));
 vi.mock("@/hooks/useNoteWindowMouseInteractions", () => ({
@@ -84,13 +70,12 @@ vi.mock("@/hooks/useNoteWindowActions", () => ({
   },
 }));
 vi.mock("@/lib/logger", () => ({ logError: vi.fn() }));
-vi.mock("@/lib/noteHistory", () => ({ recordOpenedNote: async () => {} }));
 vi.mock("@/lib/windowApi", () => ({
   bringNoteWindowsBackOnScreen: async () => {},
   getRuntimePlatform: async () => "other",
 }));
 
-test("pin changes persist after the native action, but not before window state is ready", async () => {
+test("pin changes persist only after the native action succeeds", async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();
   const container = document.createElement("div");
@@ -103,7 +88,7 @@ test("pin changes persist after the native action, but not before window state i
         finishToggle = () => resolve(true);
       }),
   );
-  mocks.persist.mockResolvedValue(undefined);
+  mocks.persist.mockResolvedValue(true);
   try {
     await act(async () =>
       root.render(<App noteId="note" notePath="/notes/note.md" />),
@@ -113,30 +98,6 @@ test("pin changes persist after the native action, but not before window state i
     await act(async () => {
       const pending = toggle();
       expect(mocks.persist).not.toHaveBeenCalled();
-      finishToggle();
-      await pending;
-    });
-    expect(mocks.persist).toHaveBeenCalledOnce();
-    mocks.ready = false;
-    mocks.persist.mockClear();
-    mocks.toggle.mockResolvedValue(true);
-    await act(async () =>
-      root.render(<App noteId="note" notePath="/notes/note.md" />),
-    );
-    await act(async () => mocks.toggleFromActions?.());
-    expect(mocks.persist).not.toHaveBeenCalled();
-    mocks.toggle.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishToggle = () => resolve(true);
-        }),
-    );
-    const pending = mocks.toggleFromActions?.();
-    mocks.ready = true;
-    await act(async () =>
-      root.render(<App noteId="note" notePath="/notes/note.md" />),
-    );
-    await act(async () => {
       finishToggle();
       await pending;
     });

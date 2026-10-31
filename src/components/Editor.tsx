@@ -4,15 +4,16 @@ import {
   editorViewOptionsCtx,
   Editor as MilkdownEditorCore,
   rootCtx,
+  serializerCtx,
 } from "@milkdown/kit/core";
 import { clipboard } from "@milkdown/kit/plugin/clipboard";
 import { history } from "@milkdown/kit/plugin/history";
 import { indent } from "@milkdown/kit/plugin/indent";
-import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { trailing } from "@milkdown/kit/plugin/trailing";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
-import { TextSelection } from "@milkdown/kit/prose/state";
+import { TextSelection, type Transaction } from "@milkdown/kit/prose/state";
+import type { EditorView } from "@milkdown/kit/prose/view";
 import {
   Milkdown,
   MilkdownProvider,
@@ -47,16 +48,23 @@ function EditorInner({ defaultValue, readOnly, onChange }: EditorInnerProps) {
             return {
               ...prev,
               editable: () => !readOnly,
+              dispatchTransaction(this: EditorView, transaction: Transaction) {
+                const previous = this.state.doc;
+                this.updateState(this.state.apply(transaction));
+                if (
+                  transaction.docChanged &&
+                  transaction.getMeta("addToHistory") !== false &&
+                  !previous.eq(this.state.doc)
+                ) {
+                  onChangeRef.current(ctx.get(serializerCtx)(this.state.doc));
+                }
+              },
             };
-          });
-          ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-            onChangeRef.current(markdown);
           });
         })
         .use(commonmark)
         .use(gfm)
         .use(history)
-        .use(listener)
         .use(clipboard)
         .use(indent)
         .use(trailing),

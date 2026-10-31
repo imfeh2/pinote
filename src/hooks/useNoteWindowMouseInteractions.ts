@@ -64,6 +64,7 @@ interface ModifierState {
 
 interface UseNoteWindowMouseInteractionsOptions {
   appWindow: ReturnType<typeof getCurrentWindow>;
+  interactionBlocked: boolean;
   noteId: string;
   notePath: string;
   windowLabel: string;
@@ -79,7 +80,7 @@ interface UseNoteWindowMouseInteractionsOptions {
     opacity?: number,
     scrollTop?: number,
     readOnly?: boolean,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   setNoteOpacityState: (value: number) => void;
   toggleAlwaysOnTop: () => Promise<void> | void;
 }
@@ -121,6 +122,7 @@ export function useNoteWindowMouseInteractions(
 ) {
   const {
     appWindow,
+    interactionBlocked,
     noteId,
     notePath,
     windowLabel,
@@ -146,6 +148,13 @@ export function useNoteWindowMouseInteractions(
   const closeContextMenu = useCallback(() => {
     void closeNoteContextMenu(windowLabel);
   }, [windowLabel]);
+
+  useEffect(() => {
+    if (!interactionBlocked) return;
+    middleDragState.current = null;
+    middleDragPendingPosition.current = null;
+    closeContextMenu();
+  }, [closeContextMenu, interactionBlocked]);
 
   const applyMiddleDragPosition = useCallback(async () => {
     if (middleDragPositionInFlight.current) return;
@@ -216,6 +225,7 @@ export function useNoteWindowMouseInteractions(
   }, []);
 
   useEffect(() => {
+    if (interactionBlocked) return;
     const dragButton = resolveDragMouseButtonCode(dragMouseButton);
 
     const handleMiddleAuxClick = (event: MouseEvent) => {
@@ -304,12 +314,14 @@ export function useNoteWindowMouseInteractions(
   }, [
     appWindow,
     closeContextMenu,
+    interactionBlocked,
     dragMouseButton,
     queueMiddleDragPosition,
     windowLabel,
   ]);
 
   useEffect(() => {
+    if (interactionBlocked) return;
     const suppressContextMenuOnce = () => {
       suppressNextContextMenu.current = true;
       window.setTimeout(() => {
@@ -469,6 +481,7 @@ export function useNoteWindowMouseInteractions(
   }, [
     appWindow,
     closeContextMenu,
+    interactionBlocked,
     noteId,
     notePath,
     noteOpacityRef,
@@ -552,6 +565,7 @@ export function useNoteWindowMouseInteractions(
   );
 
   useEffect(() => {
+    if (interactionBlocked) return;
     const handleWindowWheel = (event: WheelEvent) => {
       const consumeWheelEvent = () => {
         const editor =
@@ -592,6 +606,7 @@ export function useNoteWindowMouseInteractions(
   }, [
     adjustOpacityByWheel,
     closeContextMenu,
+    interactionBlocked,
     noteScrollTopRef,
     resizeWindowByWheel,
     wheelOpacityModifier,
@@ -599,7 +614,10 @@ export function useNoteWindowMouseInteractions(
   ]);
 
   useEffect(() => {
-    if (wheelResizeModifier !== "alt" && wheelOpacityModifier !== "alt") {
+    if (
+      interactionBlocked ||
+      (wheelResizeModifier !== "alt" && wheelOpacityModifier !== "alt")
+    ) {
       return;
     }
 
@@ -615,10 +633,14 @@ export function useNoteWindowMouseInteractions(
       window.removeEventListener("keydown", suppressBareAlt, true);
       window.removeEventListener("keyup", suppressBareAlt, true);
     };
-  }, [wheelOpacityModifier, wheelResizeModifier]);
+  }, [interactionBlocked, wheelOpacityModifier, wheelResizeModifier]);
 
   const openContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLElement>) => {
+      if (interactionBlocked) {
+        event.preventDefault();
+        return;
+      }
       if (suppressNextContextMenu.current) {
         suppressNextContextMenu.current = false;
         event.preventDefault();
@@ -649,7 +671,15 @@ export function useNoteWindowMouseInteractions(
           });
         });
     },
-    [appWindow, noteId, noteOpacityRef, notePath, noteReadOnlyRef, windowLabel],
+    [
+      appWindow,
+      interactionBlocked,
+      noteId,
+      noteOpacityRef,
+      notePath,
+      noteReadOnlyRef,
+      windowLabel,
+    ],
   );
 
   return {

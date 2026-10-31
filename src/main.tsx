@@ -33,6 +33,7 @@ function getNoteContext() {
   const notePath = params.get("notePath")?.trim() ?? "";
   if (!notePath) return null;
   const rawNoteId = params.get("noteId");
+  const rawScrollTop = Number(params.get("noteScrollTop"));
   const rawOpacity = Number.parseFloat(params.get("noteOpacity") ?? "");
   const initialOpacity = Number.isFinite(rawOpacity)
     ? Math.min(Math.max(rawOpacity, 0), 1)
@@ -43,6 +44,10 @@ function getNoteContext() {
       : getNoteIdFromPath(notePath),
     notePath,
     initialOpacity,
+    initialReadOnly: params.get("noteReadOnly") === "true",
+    initialScrollTop: Number.isFinite(rawScrollTop)
+      ? Math.max(0, rawScrollTop)
+      : 0,
   };
 }
 
@@ -139,6 +144,8 @@ function Root() {
         noteId={noteContext.noteId}
         notePath={noteContext.notePath}
         initialOpacity={noteContext.initialOpacity}
+        initialReadOnly={noteContext.initialReadOnly}
+        initialScrollTop={noteContext.initialScrollTop}
       />
     );
   }

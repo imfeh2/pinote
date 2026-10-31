@@ -13,13 +13,14 @@ import {
 } from "@/lib/contextMenuApi";
 import { logError, logInfo } from "@/lib/logger";
 import { shortcutMatchesEvent } from "@/lib/shortcuts";
-import { openSettingsWindow } from "@/lib/windowApi";
-import { openAndTrackNoteWindow } from "@/lib/windowManager";
+import { openNoteWindow, openSettingsWindow } from "@/lib/windowApi";
 import type { Settings } from "@/stores/settings";
 
 interface UseNoteWindowActionsOptions {
   appWindow: ReturnType<typeof getCurrentWindow>;
   settings: Settings;
+  interactionBlocked: boolean;
+  requestDelete: () => void;
   notePath: string;
   windowLabel: string;
   noteOpacityRef: MutableRefObject<number>;
@@ -31,7 +32,7 @@ interface UseNoteWindowActionsOptions {
     opacity?: number,
     scrollTop?: number,
     readOnly?: boolean,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   setNoteReadOnly: (value: boolean) => void;
   toggleAlwaysOnTop: () => Promise<void> | void;
   toggleTheme: () => void;
@@ -49,6 +50,8 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
   const {
     appWindow,
     settings,
+    interactionBlocked,
+    requestDelete,
     notePath,
     windowLabel,
     noteOpacityRef,
@@ -72,11 +75,10 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
     appWindow
       .isAlwaysOnTop()
       .then((currentAlwaysOnTop) => {
-        return openAndTrackNoteWindow({
+        return openNoteWindow({
           alwaysOnTop: currentAlwaysOnTop,
           opacity: noteOpacityRef.current,
           skipTaskbar: settings.hideNoteWindowsFromTaskbar,
-          ensureManagedFile: true,
           centerOnCreate: true,
         });
       })
@@ -150,7 +152,7 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
 
   const startWindowDrag = useCallback(
     (event: ReactMouseEvent<HTMLElement>) => {
-      if (event.button !== 0) return;
+      if (event.button !== 0 || interactionBlocked) return;
       event.preventDefault();
       logInfo("note-window", "window_drag_start", { windowId: windowLabel });
       appWindow.startDragging().catch((error) => {
@@ -159,7 +161,7 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
         });
       });
     },
-    [appWindow, windowLabel],
+    [appWindow, interactionBlocked, windowLabel],
   );
 
   const localShortcutActions = useMemo(
@@ -172,6 +174,7 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
         shortcut: settings.shortcuts.closeWindow,
         action: closeWindow,
       },
+      { shortcut: settings.shortcuts.deleteNote, action: requestDelete },
       {
         shortcut: settings.shortcuts.toggleAlwaysOnTop,
         action: toggleAlwaysOnTop,
@@ -189,6 +192,8 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
       closeWindow,
       hideWindow,
       settings.shortcuts.closeWindow,
+      settings.shortcuts.deleteNote,
+      requestDelete,
       settings.shortcuts.hideWindow,
       settings.shortcuts.toggleAlwaysOnTop,
       settings.shortcuts.toggleReadOnly,
@@ -201,8 +206,10 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
       for (const item of localShortcutActions) {
         if (!shortcutMatchesEvent(item.shortcut, event)) continue;
+        if (interactionBlocked && item.action !== closeWindow) return;
         consumeKeyboardEvent(event);
         item.action();
         return;
@@ -210,12 +217,17 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [localShortcutActions]);
+  }, [closeWindow, interactionBlocked, localShortcutActions]);
 
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
     const handleAction = (action: NoteContextMenuAction) => {
+      if (interactionBlocked && action !== "close-window") return;
+      if (action === "delete-note") {
+        requestDelete();
+        return;
+      }
       if (action === "new-note") {
         openNote();
         return;
@@ -269,6 +281,8 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
   }, [
     closeWindow,
     hideWindow,
+    interactionBlocked,
+    requestDelete,
     minimizeWindow,
     openNote,
     openSettings,

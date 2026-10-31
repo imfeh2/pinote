@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   removeRecords: vi.fn(),
   open: vi.fn(),
   deleted: vi.fn(),
+  language: "en-US",
 }));
 vi.mock("@/lib/noteHistory", () => ({
   deleteHistoryNotes: mocks.deleteNotes,
@@ -19,13 +20,21 @@ vi.mock("@tauri-apps/plugin-fs", () => ({ readTextFile: async () => "" }));
 vi.mock("react-i18next", async () => {
   const { createInstance } = await import("i18next");
   const { default: settings } = await import("@/i18n/resources/en-US/settings");
+  const { default: chineseSettings } = await import(
+    "@/i18n/resources/zh-CN/settings"
+  );
   const i18n = createInstance();
   await i18n.init({
     lng: "en-US",
     defaultNS: "settings",
-    resources: { "en-US": { settings } },
+    resources: {
+      "en-US": { settings },
+      "zh-CN": { settings: chineseSettings },
+    },
   });
-  return { useTranslation: () => ({ t: i18n.t }) };
+  return {
+    useTranslation: () => ({ t: i18n.getFixedT(mocks.language, "settings") }),
+  };
 });
 vi.mock("@milkdown/react", () => ({
   useEditor: () => {},
@@ -103,10 +112,29 @@ function checked(index: number) {
   return checkbox(index).getAttribute("aria-checked");
 }
 
+test("renders the delete confirmation completely in Chinese", async () => {
+  mocks.language = "zh-CN";
+  await render();
+  await click(checkbox(0));
+  await click(element('[aria-label="删除"]'));
+  const dialog = element('[role="alertdialog"]', document);
+  expect(dialog.textContent).toContain("删除 1 条便签？");
+  expect(dialog.textContent).toContain(
+    "移除历史记录，或永久删除 Markdown 文件。",
+  );
+  expect(
+    Array.from(
+      dialog.querySelectorAll("button"),
+      (button) => button.textContent,
+    ),
+  ).toEqual(["取消", "移除记录", "删除文件"]);
+});
+
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();
   vi.clearAllMocks();
+  mocks.language = "en-US";
   hitTarget = null;
   vi.spyOn(document, "elementFromPoint").mockImplementation(() => hitTarget);
   HTMLElement.prototype.setPointerCapture = vi.fn();

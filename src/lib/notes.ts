@@ -1,8 +1,5 @@
-import { appDataDir, dirname, resolve } from "@tauri-apps/api/path";
-import { exists, mkdir, writeTextFile } from "@tauri-apps/plugin-fs";
-import { loadSettings } from "@/stores/settings";
+import { appDataDir, resolve } from "@tauri-apps/api/path";
 
-const NOTE_WINDOW_PREFIX = "note-";
 const NOTE_FILE_EXTENSION = ".md";
 const NOTE_DIRECTORY = "notes";
 
@@ -50,92 +47,7 @@ export function getNoteIdFromPath(notePath: string) {
   return normalizeNoteId(withoutExt);
 }
 
-function hashFnv1a(value: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-}
-
-export function buildNotePathHash(notePath: string) {
-  const normalizedPath = notePath.trim().toLowerCase();
-  return hashFnv1a(normalizedPath);
-}
-
-export function buildNoteCacheKey(notePath: string) {
-  return buildNotePathHash(notePath);
-}
-
-export function buildNoteWindowId(notePath: string) {
-  return `${NOTE_WINDOW_PREFIX}${buildNotePathHash(notePath)}`;
-}
-
-export function buildNoteWindowUrl(params: {
-  windowId: string;
-  noteId: string;
-  notePath: string;
-  noteOpacity?: number;
-}) {
-  const query = new URLSearchParams({
-    view: "note",
-    windowId: params.windowId,
-    noteId: normalizeNoteId(params.noteId),
-    notePath: params.notePath,
-  });
-  if (
-    typeof params.noteOpacity === "number" &&
-    Number.isFinite(params.noteOpacity)
-  ) {
-    query.set("noteOpacity", params.noteOpacity.toString());
-  }
-  return `index.html?${query.toString()}`;
-}
-
 export async function resolveDefaultNotesDirectory() {
   const root = await appDataDir();
   return resolve(root, NOTE_DIRECTORY);
-}
-
-export async function resolveManagedNotesDirectory() {
-  const settings = await loadSettings();
-  const customDirectory = settings.newNoteDirectory.trim();
-  if (customDirectory) return customDirectory;
-  return resolveDefaultNotesDirectory();
-}
-
-export async function resolveManagedNotePath(noteId: string) {
-  const notesDirectory = await resolveManagedNotesDirectory();
-  return resolve(
-    notesDirectory,
-    `${normalizeNoteId(noteId)}${NOTE_FILE_EXTENSION}`,
-  );
-}
-
-async function ensureParentDirectory(path: string) {
-  const parent = (await dirname(path)).trim();
-  if (!parent) return;
-  const parentExists = await exists(parent);
-  if (parentExists) return;
-  await mkdir(parent, { recursive: true });
-}
-
-export async function ensureNoteFile(notePath: string) {
-  const targetPath = notePath.trim();
-  if (!targetPath) return;
-  const fileExists = await exists(targetPath);
-  if (fileExists) return;
-  await ensureParentDirectory(targetPath);
-  await writeTextFile(targetPath, "");
-}
-
-export async function createManagedNoteFile(noteId?: string) {
-  const normalizedNoteId = normalizeNoteId(noteId);
-  const notePath = await resolveManagedNotePath(normalizedNoteId);
-  await ensureNoteFile(notePath);
-  return {
-    noteId: normalizedNoteId,
-    notePath,
-  };
 }

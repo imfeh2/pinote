@@ -2,14 +2,12 @@ use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    io::{self, Write},
-    path::{Path, PathBuf},
+    fs, io,
+    path::PathBuf,
     sync::Mutex,
     time::Instant,
 };
 use tauri::Manager;
-use tempfile::Builder;
 use uuid::Uuid;
 
 const HISTORY_VERSION: u32 = 1;
@@ -22,7 +20,7 @@ pub struct NoteHistoryStore {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteHistoryEntry {
-    note_path: String,
+    pub(crate) note_path: String,
     note_id: String,
     window_id: String,
     last_opened_at: String,
@@ -31,9 +29,9 @@ pub struct NoteHistoryEntry {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordNoteParams {
-    note_path: String,
-    note_id: String,
-    window_id: String,
+    pub(crate) note_path: String,
+    pub(crate) note_id: String,
+    pub(crate) window_id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -48,14 +46,14 @@ struct HistoryFile {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteDeleteFailure {
-    note_path: String,
-    reason: String,
+    pub(crate) note_path: String,
+    pub(crate) reason: String,
 }
 
 #[derive(Debug, Default, Serialize)]
 pub struct NoteDeleteResult {
-    deleted: Vec<String>,
-    failures: Vec<NoteDeleteFailure>,
+    pub(crate) deleted: Vec<String>,
+    pub(crate) failures: Vec<NoteDeleteFailure>,
 }
 
 fn timestamp_now() -> String {
@@ -102,6 +100,24 @@ impl HistoryFile {
                 .then_with(|| left.cmp(right))
         });
         self.order.extend(remaining);
+        let mut entries = HashMap::new();
+        self.order = self
+            .order
+            .iter()
+            .filter_map(|key| {
+                let entry = self
+                    .entries
+                    .remove(key)
+                    .expect("Validated history entry disappeared");
+                let key = crate::document::storage_key(&entry.note_path);
+                if entries.contains_key(&key) {
+                    return None;
+                }
+                entries.insert(key.clone(), entry);
+                Some(key)
+            })
+            .collect();
+        self.entries = entries;
         Ok(())
     }
 }
@@ -132,32 +148,10 @@ impl NoteHistoryStore {
 
     fn save(&self, history: &HistoryFile, operation_id: &str) -> Result<(), String> {
         let result = (|| {
-            let parent = self.path.parent().ok_or("History path has no parent")?;
-            fs::create_dir_all(parent)
-                .map_err(|error| format!("Could not create history directory: {error}"))?;
             let content = serde_json::to_vec_pretty(history)
                 .map_err(|error| format!("Could not serialize history: {error}"))?;
-            // 临时路径使用普通文件属性，供后续原子替换。
-            let mut file = Builder::new()
-                .make_in(parent, |path| {
-                    let mut options = fs::OpenOptions::new();
-                    options.read(true).write(true).create_new(true);
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::OpenOptionsExt;
-                        options.mode(0o600);
-                    }
-                    options.open(path)
-                })
-                .map_err(|error| format!("Could not create history temporary file: {error}"))?;
-            file.write_all(&content)
-                .map_err(|error| format!("Could not write history: {error}"))?;
-            file.as_file()
-                .sync_all()
-                .map_err(|error| format!("Could not synchronize history: {error}"))?;
-            fs::rename(file.path(), &self.path)
+            crate::storage::replace_file(&self.path, &content)
                 .map_err(|error| format!("Could not replace history: {error}"))?;
-            file.disable_cleanup(true);
             log::info!(
                 "history_saved operation_id={operation_id} entries={} bytes={}",
                 history.entries.len(),
@@ -208,7 +202,7 @@ impl NoteHistoryStore {
         result
     }
 
-    fn list(&self, window_label: &str) -> Result<Vec<NoteHistoryEntry>, String> {
+    pub(crate) fn list(&self, window_label: &str) -> Result<Vec<NoteHistoryEntry>, String> {
         self.access("list", window_label, |history, _| {
             Ok(history
                 .order
@@ -218,7 +212,11 @@ impl NoteHistoryStore {
         })
     }
 
-    fn record(&self, params: RecordNoteParams, window_label: &str) -> Result<(), String> {
+    pub(crate) fn record(
+        &self,
+        params: RecordNoteParams,
+        window_label: &str,
+    ) -> Result<(), String> {
         let note_path = params.note_path.trim().to_string();
         let note_id = params.note_id.trim().to_string();
         let window_id = params.window_id.trim().to_string();
@@ -228,7 +226,7 @@ impl NoteHistoryStore {
             ));
         }
         self.access("record", window_label, |history, operation_id| {
-            let key = crate::hash_fnv1a_utf16(&note_path.to_lowercase());
+            let key = crate::document::storage_key(&note_path);
             let now = timestamp_now();
             history.entries.insert(
                 key.clone(),
@@ -246,26 +244,30 @@ impl NoteHistoryStore {
         })
     }
 
-    fn delete(
-        &self,
-        note_paths: Vec<String>,
-        window_label: &str,
-    ) -> Result<NoteDeleteResult, String> {
-        self.remove(note_paths, true, window_label)
+    pub(crate) fn forget(&self, paths: &[String], window_label: &str) -> Result<(), String> {
+        self.access("forget", window_label, |history, operation_id| {
+            let selected: HashSet<&String> = paths.iter().collect();
+            let before = history.entries.len();
+            history
+                .entries
+                .retain(|_, entry| !selected.contains(&entry.note_path));
+            if history.entries.len() != before {
+                history
+                    .order
+                    .retain(|key| history.entries.contains_key(key));
+                history.updated_at = timestamp_now();
+                self.save(history, operation_id)?;
+            }
+            Ok(())
+        })
     }
 
     fn remove(
         &self,
         note_paths: Vec<String>,
-        delete_files: bool,
         window_label: &str,
     ) -> Result<NoteDeleteResult, String> {
-        let operation = if delete_files {
-            "delete"
-        } else {
-            "remove_records"
-        };
-        self.access(operation, window_label, |history, operation_id| {
+        self.access("remove_records", window_label, |history, operation_id| {
             let known_paths: HashSet<_> = history
                 .entries
                 .values()
@@ -279,8 +281,6 @@ impl NoteHistoryStore {
                 }
                 let deletion = if !known_paths.contains(&note_path) {
                     Err(String::from("Note is no longer in history."))
-                } else if delete_files {
-                    delete_note_file(Path::new(&note_path)).map_err(|error| error.to_string())
                 } else {
                     Ok(())
                 };
@@ -310,7 +310,7 @@ impl NoteHistoryStore {
                 }
             }
             log::info!(
-                "history_delete_finished operation_id={operation_id} delete_files={delete_files} deleted={} failed={}",
+                "history_remove_finished operation_id={operation_id} deleted={} failed={}",
                 result.deleted.len(),
                 result.failures.len()
             );
@@ -319,28 +319,15 @@ impl NoteHistoryStore {
     }
 }
 
-fn delete_note_file(path: &Path) -> io::Result<()> {
-    match fs::metadata(path) {
-        Ok(metadata) if !metadata.is_file() => {
-            return Err(io::Error::other("The path is not a file."));
-        }
-        Ok(_) => {}
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error),
-    }
-    match fs::remove_file(path) {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        result => result,
-    }
-}
-
 async fn run<T: Send + 'static>(
     app: tauri::AppHandle,
     action: impl FnOnce(&NoteHistoryStore) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(move || action(&app.state::<NoteHistoryStore>()))
-        .await
-        .map_err(|error| format!("History task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        action(&app.state::<crate::document::DocumentService>().history)
+    })
+    .await
+    .map_err(|error| format!("History task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -353,23 +340,17 @@ pub async fn list_note_history(
 }
 
 #[tauri::command]
-pub async fn record_note_history(
-    app: tauri::AppHandle,
-    window: tauri::WebviewWindow,
-    params: RecordNoteParams,
-) -> Result<(), String> {
-    let label = window.label().to_string();
-    run(app, move |store| store.record(params, &label)).await
-}
-
-#[tauri::command]
 pub async fn delete_history_notes(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     note_paths: Vec<String>,
 ) -> Result<NoteDeleteResult, String> {
     let label = window.label().to_string();
-    run(app, move |store| store.delete(note_paths, &label)).await
+    app.state::<crate::document::DocumentService>()
+        .delete_history(note_paths, label, |result| {
+            crate::document::finish_window(&app, result)
+        })
+        .await
 }
 
 #[tauri::command]
@@ -379,24 +360,36 @@ pub async fn remove_history_records(
     note_paths: Vec<String>,
 ) -> Result<NoteDeleteResult, String> {
     let label = window.label().to_string();
-    run(app, move |store| store.remove(note_paths, false, &label)).await
+    run(app, move |store| store.remove(note_paths, &label)).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::{
+        path::Path,
         sync::{Arc, Barrier, mpsc},
         thread,
         time::Duration,
     };
 
     fn directory() -> tempfile::TempDir {
-        let parent = std::env::var_os("PINOTE_TEST_DIRECTORY")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.windows-dev"));
-        fs::create_dir_all(&parent).unwrap();
-        tempfile::tempdir_in(parent).unwrap()
+        if let Some(parent) = std::env::var_os("PINOTE_TEST_DIRECTORY") {
+            fs::create_dir_all(&parent).unwrap();
+            tempfile::tempdir_in(parent).unwrap()
+        } else {
+            crate::storage::test_directory()
+        }
+    }
+
+    fn delete(store: &NoteHistoryStore, paths: Vec<String>) -> Result<NoteDeleteResult, String> {
+        let service =
+            crate::document::DocumentService::new(store.path.parent().unwrap().to_path_buf());
+        tauri::async_runtime::block_on(service.delete_history(
+            paths,
+            String::from("settings"),
+            |_| {},
+        ))
     }
 
     fn params(path: &Path) -> RecordNoteParams {
@@ -412,7 +405,7 @@ mod tests {
         for index in 0..count {
             let note_path = store.path.parent().unwrap().join(format!("{index}.md"));
             let note_path = note_path.to_str().unwrap().to_string();
-            let key = crate::hash_fnv1a_utf16(&note_path.to_lowercase());
+            let key = format!("legacy-{index}");
             history.entries.insert(
                 key.clone(),
                 NoteHistoryEntry {
@@ -444,7 +437,7 @@ mod tests {
             .into_iter()
             .map(|path| path.to_str().unwrap().to_string())
             .collect();
-        let result = store.remove(requested, false, "settings").unwrap();
+        let result = store.remove(requested, "settings").unwrap();
         assert_eq!(result.deleted.len(), 3);
         assert_eq!(result.failures.len(), 1);
         assert_eq!(result.failures[0].note_path, unknown.to_str().unwrap());
@@ -459,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_legacy_json_and_updates_the_existing_utf16_key() {
+    fn reads_legacy_json_and_updates_the_same_entry() {
         let dir = directory();
         let store = NoteHistoryStore::new(dir.path().join("history.json"));
         let content = r#"{
@@ -489,7 +482,8 @@ mod tests {
         assert_eq!(saved["version"], 1);
         assert!(saved["updatedAt"].as_str().is_some());
         assert_eq!(saved["entries"].as_object().unwrap().len(), 1);
-        assert_eq!(saved["order"], serde_json::json!(["05744db1"]));
+        let key = crate::document::storage_key(r"C:\Notes\Emoji😀.md");
+        assert_eq!(saved["order"], serde_json::json!([key]));
     }
 
     #[test]
@@ -518,9 +512,7 @@ mod tests {
             assert_eq!(fs::read_to_string(&note).unwrap(), "content");
 
             fs::write(&store.path, [prefix, saved.as_slice()].concat()).unwrap();
-            let result = store
-                .delete(vec![note.to_str().unwrap().to_string()], "settings")
-                .unwrap();
+            let result = delete(&store, vec![note.to_str().unwrap().to_string()]).unwrap();
             assert_eq!(result.deleted, vec![note.to_str().unwrap()]);
             assert!(result.failures.is_empty());
             assert!(!note.exists());
@@ -667,11 +659,7 @@ mod tests {
                 fs::write(&store.path, &content).unwrap();
                 assert!(store.list("reader").is_err());
                 assert!(store.record(params(&note), "writer").is_err());
-                assert!(
-                    store
-                        .delete(vec![note.to_str().unwrap().to_string()], "settings")
-                        .is_err()
-                );
+                assert!(delete(&store, vec![note.to_str().unwrap().to_string()]).is_err());
                 assert_eq!(fs::read_to_string(&store.path).unwrap(), content);
                 assert_eq!(fs::read_to_string(&note).unwrap(), "content");
             }
@@ -695,7 +683,7 @@ mod tests {
             .into_iter()
             .map(|path| path.to_str().unwrap().to_string())
             .collect();
-        let result = store.delete(requested, "settings").unwrap();
+        let result = delete(&store, requested).unwrap();
         assert_eq!(
             result.deleted,
             vec![paths[0].to_str().unwrap(), paths[1].to_str().unwrap()]
@@ -722,7 +710,7 @@ mod tests {
         store.record(params(&note), "writer").unwrap();
         let original = fs::read(&store.path).unwrap();
         fs::set_permissions(&protected, fs::Permissions::from_mode(0o000)).unwrap();
-        let deletion = store.delete(vec![note.to_str().unwrap().to_string()], "settings");
+        let deletion = delete(&store, vec![note.to_str().unwrap().to_string()]);
         fs::set_permissions(&protected, fs::Permissions::from_mode(0o700)).unwrap();
         let deletion = deletion.unwrap();
         assert!(deletion.deleted.is_empty());
@@ -757,23 +745,19 @@ mod tests {
         assert!(error.contains("Could not replace history:"));
         assert_eq!(fs::read(&store.path).unwrap(), original);
         let result = store
-            .remove(vec![note.to_str().unwrap().to_string()], false, "settings")
+            .remove(vec![note.to_str().unwrap().to_string()], "settings")
             .unwrap();
         assert!(result.deleted.is_empty());
         assert_eq!(result.failures.len(), 1);
         assert_eq!(fs::read_to_string(&note).unwrap(), "content");
         assert_eq!(fs::read(&store.path).unwrap(), original);
-        let result = store
-            .delete(vec![note.to_str().unwrap().to_string()], "settings")
-            .unwrap();
+        let result = delete(&store, vec![note.to_str().unwrap().to_string()]).unwrap();
         assert!(result.deleted.is_empty());
         assert_eq!(result.failures.len(), 1);
         assert!(!note.exists());
         assert_eq!(fs::read(&store.path).unwrap(), original);
         drop(reader);
-        let result = store
-            .delete(vec![note.to_str().unwrap().to_string()], "settings")
-            .unwrap();
+        let result = delete(&store, vec![note.to_str().unwrap().to_string()]).unwrap();
         assert_eq!(result.deleted.len(), 1);
         assert!(store.list("reader").unwrap().is_empty());
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);

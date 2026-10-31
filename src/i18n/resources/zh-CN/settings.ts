@@ -99,6 +99,7 @@ export default {
       toggleTheme: "切换主题",
       hideWindow: "隐藏便签",
       closeWindow: "关闭便签",
+      deleteNote: "删除便签",
     },
     global: {
       badge: "全局",
@@ -139,11 +140,10 @@ export default {
     selectNote: "选择 {{path}}",
     clearSelection: "清空选择",
     delete: "删除",
-    removeRecords: "Remove records",
-    deleteFiles: "Delete files",
+    removeRecords: "移除记录",
+    deleteFiles: "删除文件",
     deleteTitle: "删除 {{count}} 条便签？",
-    deleteDescription:
-      "Remove history records or permanently delete the Markdown files.",
+    deleteDescription: "移除历史记录，或永久删除 Markdown 文件。",
     deleteFailed: "删除失败",
     deleteFailedDescription: "以下便签未能删除。",
     cancel: "取消",

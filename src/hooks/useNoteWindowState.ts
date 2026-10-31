@@ -1,93 +1,40 @@
 import type { getCurrentWindow } from "@tauri-apps/api/window";
-import { type MutableRefObject, useCallback, useEffect, useState } from "react";
+import {
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { logError } from "@/lib/logger";
 import {
-  getWindowState,
-  removeWindowState,
-  upsertWindowState,
+  saveWindowPreferences,
   type WindowVisibility,
 } from "@/lib/windowStateCache";
-
-const NOTE_OPACITY_MIN = 0;
-const NOTE_OPACITY_MAX = 1;
-const NOTE_SCROLL_STATE_DEBOUNCE_MS = 200;
-
-type CloseRequestState = "idle" | "persisting" | "ready";
+import type { WorkingCopy } from "@/lib/workingCopy";
 
 interface UseNoteWindowStateOptions {
   appWindow: ReturnType<typeof getCurrentWindow>;
-  noteId: string;
-  notePath: string;
-  windowLabel: string;
+  document: WorkingCopy;
+  initialScrollTop: number;
   noteOpacityRef: MutableRefObject<number>;
   noteReadOnlyRef: MutableRefObject<boolean>;
   noteScrollTopRef: MutableRefObject<number>;
-  scrollPersistTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
-  closeRequestState: MutableRefObject<CloseRequestState>;
-  forceHiddenVisibilityRef: MutableRefObject<boolean>;
-  hideInProgressRef: MutableRefObject<boolean>;
-  setNoteOpacityState: (value: number) => void;
-  setNoteReadOnly: (value: boolean) => void;
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-export function useNoteWindowState(options: UseNoteWindowStateOptions) {
-  const {
-    appWindow,
-    noteId,
-    notePath,
-    windowLabel,
-    noteOpacityRef,
-    noteReadOnlyRef,
-    noteScrollTopRef,
-    scrollPersistTimerRef,
-    closeRequestState,
-    forceHiddenVisibilityRef,
-    hideInProgressRef,
-    setNoteOpacityState,
-    setNoteReadOnly,
-  } = options;
-  const [initialEditorScrollTop, setInitialEditorScrollTop] = useState(0);
-  const [windowStateReadyKey, setWindowStateReadyKey] = useState<string | null>(
-    null,
-  );
-  const windowStateKey = `${windowLabel}:${noteId}`;
-  const windowStateReady = windowStateReadyKey === windowStateKey;
-
-  useEffect(() => {
-    let disposed = false;
-    getWindowState(windowLabel)
-      .then((state) => {
-        if (disposed) return;
-        if (!state) return;
-        if (state.noteId !== noteId) return;
-        setNoteOpacityState(
-          clamp(state.opacity, NOTE_OPACITY_MIN, NOTE_OPACITY_MAX),
-        );
-        setNoteReadOnly(state.readOnly === true);
-        const cachedScrollTop = Math.max(0, state.scrollTop);
-        noteScrollTopRef.current = cachedScrollTop;
-        setInitialEditorScrollTop(cachedScrollTop);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (disposed) return;
-        setWindowStateReadyKey(windowStateKey);
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [
-    noteId,
-    noteScrollTopRef,
-    setNoteOpacityState,
-    setNoteReadOnly,
-    windowLabel,
-    windowStateKey,
-  ]);
+export function useNoteWindowState({
+  appWindow,
+  document,
+  initialScrollTop,
+  noteOpacityRef,
+  noteReadOnlyRef,
+  noteScrollTopRef,
+}: UseNoteWindowStateOptions) {
+  const [initialEditorScrollTop, setInitialEditorScrollTop] =
+    useState(initialScrollTop);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const forceHidden = useRef(false);
+  const hiding = useRef(false);
 
   const persistWindowState = useCallback(
     async (
@@ -98,148 +45,97 @@ export function useNoteWindowState(options: UseNoteWindowStateOptions) {
       readOnly?: boolean,
       preserveHiddenVisibility = visibility === undefined,
     ) => {
+      if (
+        !["loading", "ready", "quitting"].includes(document.getSnapshot().phase)
+      )
+        return false;
+      const nextVisibility =
+        visibility ?? (forceHidden.current ? "hidden" : undefined);
+      if (nextVisibility === "visible") forceHidden.current = false;
       try {
-        const [position, size, currentAlwaysOnTop, visible] = await Promise.all(
-          [
-            appWindow.outerPosition(),
-            appWindow.innerSize(),
-            appWindow.isAlwaysOnTop(),
-            appWindow.isVisible(),
-          ],
-        );
-        let nextVisibility: WindowVisibility;
-        if (visibility) {
-          nextVisibility = visibility;
-        } else if (forceHiddenVisibilityRef.current) {
-          nextVisibility = "hidden";
-        } else {
-          nextVisibility = visible ? "visible" : "hidden";
-        }
-        if (nextVisibility === "visible") {
-          forceHiddenVisibilityRef.current = false;
-        }
-        const nextOpacity = clamp(
-          opacity ?? noteOpacityRef.current,
-          NOTE_OPACITY_MIN,
-          NOTE_OPACITY_MAX,
-        );
-        const nextScrollTop = Math.max(
-          0,
-          scrollTop ?? noteScrollTopRef.current,
-        );
-        await upsertWindowState(
+        await saveWindowPreferences(
           {
-            windowId: windowLabel,
-            noteId,
-            notePath,
-            visibility: nextVisibility,
-            alwaysOnTop: currentAlwaysOnTop,
+            opacity: Math.min(
+              1,
+              Math.max(0, opacity ?? noteOpacityRef.current),
+            ),
+            scrollTop: Math.max(0, scrollTop ?? noteScrollTopRef.current),
             readOnly: readOnly ?? noteReadOnlyRef.current,
-            opacity: nextOpacity,
-            scrollTop: nextScrollTop,
-            bounds: {
-              x: position.x,
-              y: position.y,
-              width: size.width,
-              height: size.height,
-            },
-            updatedAt: new Date().toISOString(),
+            visibility: nextVisibility,
           },
           { pushHiddenToTop, preserveHiddenVisibility },
         );
+        return true;
       } catch (error) {
+        document.report(error);
         logError("note-window", "persist_window_state_failed", error, {
-          windowId: windowLabel,
-          notePath,
-          noteId,
+          windowId: appWindow.label,
         });
+        return false;
       }
     },
-    [
-      appWindow,
-      forceHiddenVisibilityRef,
-      noteId,
-      noteOpacityRef,
-      notePath,
-      noteReadOnlyRef,
-      noteScrollTopRef,
-      windowLabel,
-    ],
+    [appWindow, document, noteOpacityRef, noteReadOnlyRef, noteScrollTopRef],
   );
 
   const handleScrollTopChange = useCallback(
     (scrollTop: number) => {
-      const nextScrollTop = Math.max(
+      noteScrollTopRef.current = Math.max(
         0,
         Number.isFinite(scrollTop) ? scrollTop : 0,
       );
-      noteScrollTopRef.current = nextScrollTop;
-      if (scrollPersistTimerRef.current) {
-        clearTimeout(scrollPersistTimerRef.current);
-      }
-      scrollPersistTimerRef.current = setTimeout(() => {
-        void persistWindowState(undefined, false, undefined, nextScrollTop);
-      }, NOTE_SCROLL_STATE_DEBOUNCE_MS);
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      scrollTimer.current = setTimeout(() => {
+        void persistWindowState();
+      }, 200);
     },
-    [noteScrollTopRef, persistWindowState, scrollPersistTimerRef],
+    [noteScrollTopRef, persistWindowState],
   );
 
   const hideWindow = useCallback(async () => {
+    if (hiding.current) return;
+    hiding.current = true;
+    forceHidden.current = true;
+    if (scrollTimer.current) {
+      clearTimeout(scrollTimer.current);
+      scrollTimer.current = null;
+    }
     try {
-      hideInProgressRef.current = true;
-      forceHiddenVisibilityRef.current = true;
-      if (scrollPersistTimerRef.current) {
-        clearTimeout(scrollPersistTimerRef.current);
-        scrollPersistTimerRef.current = null;
+      if (!(await persistWindowState("hidden", true))) {
+        forceHidden.current = false;
+        return;
       }
-      await persistWindowState(
-        "hidden",
-        true,
-        noteOpacityRef.current,
-        Math.max(0, noteScrollTopRef.current),
-      );
       await appWindow.hide();
     } catch (error) {
+      forceHidden.current = false;
+      await persistWindowState(
+        undefined,
+        false,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+      document.report(error);
       logError("note-window", "hide_window_failed", error, {
-        windowId: windowLabel,
+        windowId: appWindow.label,
       });
-      forceHiddenVisibilityRef.current = false;
     } finally {
-      hideInProgressRef.current = false;
+      hiding.current = false;
     }
-  }, [
-    appWindow,
-    forceHiddenVisibilityRef,
-    hideInProgressRef,
-    noteOpacityRef,
-    noteScrollTopRef,
-    persistWindowState,
-    scrollPersistTimerRef,
-    windowLabel,
-  ]);
-
-  useEffect(() => {
-    if (!windowStateReady) return;
-    void persistWindowState();
-  }, [persistWindowState, windowStateReady]);
+  }, [appWindow, document, persistWindowState]);
 
   useEffect(() => {
     let disposed = false;
-    let unlistenHandlers: Array<() => void> = [];
-    const setupWindowListeners = async () => {
-      const handlers = await Promise.all([
-        appWindow.onMoved(() => {
-          if (!windowStateReady) return;
-          void persistWindowState();
-        }),
-        appWindow.onResized(() => {
-          if (!windowStateReady) return;
-          void persistWindowState();
-        }),
-        appWindow.onFocusChanged(({ payload }) => {
-          if (!windowStateReady) return;
-          if (!payload) return;
-          if (hideInProgressRef.current) return;
+    const handlers: Array<() => void> = [];
+    for (const registration of [
+      appWindow.onMoved(() => {
+        void persistWindowState();
+      }),
+      appWindow.onResized(() => {
+        void persistWindowState();
+      }),
+      appWindow.onFocusChanged(({ payload }) => {
+        if (payload && !hiding.current)
           void persistWindowState(
             "visible",
             false,
@@ -248,70 +144,24 @@ export function useNoteWindowState(options: UseNoteWindowStateOptions) {
             undefined,
             true,
           );
-        }),
-        appWindow.onCloseRequested((event) => {
-          if (closeRequestState.current === "ready") {
-            closeRequestState.current = "idle";
-            return;
-          }
-          event.preventDefault();
-          if (closeRequestState.current === "persisting") return;
-          closeRequestState.current = "persisting";
-          void removeWindowState(windowLabel)
-            .catch((error) => {
-              logError("note-window", "remove_window_state_failed", error, {
-                windowId: windowLabel,
-              });
-            })
-            .finally(() => {
-              closeRequestState.current = "ready";
-              appWindow.close().catch((error) => {
-                closeRequestState.current = "idle";
-                logError(
-                  "note-window",
-                  "close_window_failed_on_request",
-                  error,
-                  {
-                    windowId: windowLabel,
-                  },
-                );
-              });
-            });
-        }),
-      ]);
-      if (disposed) {
-        for (const handler of handlers) {
-          handler();
-        }
-        return;
-      }
-      unlistenHandlers = handlers;
-    };
-
-    void setupWindowListeners();
+      }),
+    ]) {
+      void registration.then(
+        (unlisten) => {
+          if (disposed) unlisten();
+          else handlers.push(unlisten);
+        },
+        (error: unknown) => {
+          document.report(error);
+        },
+      );
+    }
     return () => {
       disposed = true;
-      for (const handler of unlistenHandlers) {
-        handler();
-      }
-      unlistenHandlers = [];
+      for (const unlisten of handlers) unlisten();
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
-  }, [
-    appWindow,
-    closeRequestState,
-    hideInProgressRef,
-    persistWindowState,
-    windowLabel,
-    windowStateReady,
-  ]);
-
-  useEffect(() => {
-    return () => {
-      if (scrollPersistTimerRef.current) {
-        clearTimeout(scrollPersistTimerRef.current);
-      }
-    };
-  }, [scrollPersistTimerRef]);
+  }, [appWindow, document, persistWindowState]);
 
   return {
     hideWindow,
@@ -319,6 +169,5 @@ export function useNoteWindowState(options: UseNoteWindowStateOptions) {
     initialEditorScrollTop,
     persistWindowState,
     setInitialEditorScrollTop,
-    windowStateReady,
   };
 }

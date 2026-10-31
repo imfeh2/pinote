@@ -3,13 +3,13 @@ use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
     fs,
+    path::PathBuf,
     sync::Mutex,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::Manager;
 
 const CACHE_VERSION: u32 = 1;
-const CACHE_FILE_NAME: &str = "windows.json";
 const NOTE_OPACITY_MIN: f64 = 0.0;
 const NOTE_OPACITY_MAX: f64 = 1.0;
 const NOTE_SCROLL_TOP_MIN: f64 = 0.0;
@@ -17,8 +17,85 @@ const RESERVED_WINDOW_IDS: [&str; 1] = ["settings"];
 const DEFAULT_WINDOW_WIDTH: f64 = 400.0;
 const DEFAULT_WINDOW_HEIGHT: f64 = 500.0;
 
-#[derive(Default)]
-pub struct WindowStateStore(pub Mutex<()>);
+pub struct WindowStateStore {
+    path: PathBuf,
+    mutex: Mutex<()>,
+}
+
+impl WindowStateStore {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            mutex: Mutex::new(()),
+        }
+    }
+
+    pub fn read(&self) -> Result<WindowStateCache, String> {
+        let _guard = self
+            .mutex
+            .lock()
+            .map_err(|_| String::from("Failed to lock window state cache"))?;
+        self.read_unlocked()
+    }
+
+    fn mutate<T>(&self, update: impl FnOnce(&mut WindowStateCache) -> T) -> Result<T, String> {
+        let _guard = self
+            .mutex
+            .lock()
+            .map_err(|_| String::from("Failed to lock window state cache"))?;
+        let mut cache = self.read_unlocked()?;
+        let result = update(&mut cache);
+        let content = serde_json::to_vec_pretty(&cache)
+            .map_err(|error| format!("Failed to serialize window state cache: {error}"))?;
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        }
+        crate::storage::replace_file(&self.path, &content)
+            .map_err(|error| format!("Failed to write window state cache: {error}"))?;
+        Ok(result)
+    }
+
+    fn read_unlocked(&self) -> Result<WindowStateCache, String> {
+        let content = match fs::read_to_string(&self.path) {
+            Ok(value) => value,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(build_empty_cache());
+            }
+            Err(error) => return Err(format!("Failed to read window state cache: {error}")),
+        };
+        let value = serde_json::from_str::<Value>(content.trim_start_matches('\u{feff}'))
+            .map_err(|error| format!("Failed to parse window state cache: {error}"))?;
+        if value.get("version").and_then(Value::as_u64) != Some(u64::from(CACHE_VERSION)) {
+            return Err(String::from("Unsupported window state cache version"));
+        }
+        if !value.get("windows").is_some_and(Value::is_object) {
+            return Err(String::from("Invalid window state cache"));
+        }
+        sanitize_cache(value)
+    }
+
+    pub fn remove_windows(&self, labels: &[String]) -> Result<(), String> {
+        if labels.is_empty() {
+            return Ok(());
+        }
+        let labels: HashSet<&str> = labels.iter().map(String::as_str).collect();
+        self.mutate(|cache| {
+            let keys: HashSet<String> = cache
+                .windows
+                .iter()
+                .filter(|(_, state)| labels.contains(state.window_id.as_str()))
+                .map(|(key, _)| key.clone())
+                .collect();
+            cache.windows.retain(|key, _| !keys.contains(key));
+            cache.window_order.retain(|key| !keys.contains(key));
+            cache.hidden_stack.retain(|key| !keys.contains(key));
+            cache
+                .visible_window_toggle_snapshot
+                .retain(|label| !labels.contains(label.as_str()));
+            cache.updated_at = timestamp_now();
+        })
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -60,6 +137,15 @@ pub struct WindowStateCache {
     pub window_order: Vec<String>,
     pub hidden_stack: Vec<String>,
     pub visible_window_toggle_snapshot: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowPreferences {
+    pub read_only: bool,
+    pub opacity: f64,
+    pub scroll_top: f64,
+    pub visibility: Option<WindowVisibility>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -119,21 +205,8 @@ fn compare_updated_at(left: &str, right: &str) -> std::cmp::Ordering {
     }
 }
 
-fn normalize_note_path(value: &str) -> String {
-    value.trim().to_lowercase()
-}
-
-fn hash_fnv1a_utf16(value: &str) -> String {
-    let mut hash: u32 = 0x811c9dc5;
-    for code_unit in value.encode_utf16() {
-        hash ^= code_unit as u32;
-        hash = hash.wrapping_mul(0x01000193);
-    }
-    format!("{hash:08x}")
-}
-
 fn build_note_cache_key(note_path: &str) -> String {
-    hash_fnv1a_utf16(&normalize_note_path(note_path))
+    crate::document::storage_key(note_path)
 }
 
 fn sanitize_bounds(value: Option<&Value>) -> WindowBounds {
@@ -194,9 +267,9 @@ fn sanitize_window_state(value: &Value) -> Option<CachedWindowState> {
     })
 }
 
-fn sanitize_cache(value: Value) -> WindowStateCache {
+fn sanitize_cache(value: Value) -> Result<WindowStateCache, String> {
     let Some(source) = value.as_object() else {
-        return build_empty_cache();
+        return Err(String::from("Invalid window state cache"));
     };
     let version = source
         .get("version")
@@ -204,16 +277,24 @@ fn sanitize_cache(value: Value) -> WindowStateCache {
         .and_then(|value| u32::try_from(value).ok())
         .unwrap_or_default();
     if version != CACHE_VERSION {
-        return build_empty_cache();
+        return Err(String::from("Unsupported window state cache version"));
     }
 
     let mut windows: HashMap<String, CachedWindowState> = HashMap::new();
+    let mut key_mapping = HashMap::new();
     if let Some(windows_source) = source.get("windows").and_then(Value::as_object) {
-        for item in windows_source.values() {
-            let Some(parsed) = sanitize_window_state(item) else {
+        for (old_key, item) in windows_source {
+            if item
+                .get("windowId")
+                .and_then(Value::as_str)
+                .is_some_and(|label| RESERVED_WINDOW_IDS.contains(&label))
+            {
                 continue;
-            };
+            }
+            let parsed = sanitize_window_state(item)
+                .ok_or_else(|| format!("Invalid window state entry: {old_key:?}"))?;
             let cache_key = build_note_cache_key(&parsed.note_path);
+            key_mapping.insert(old_key.clone(), cache_key.clone());
             match windows.get(&cache_key) {
                 Some(previous)
                     if compare_updated_at(&parsed.updated_at, &previous.updated_at)
@@ -225,6 +306,10 @@ fn sanitize_cache(value: Value) -> WindowStateCache {
         }
     }
 
+    let resolve_key = |item: &Value| {
+        let key = as_string(Some(item));
+        key_mapping.get(&key).cloned().unwrap_or(key)
+    };
     let existing_ids = windows.keys().cloned().collect::<HashSet<_>>();
     let existing_window_ids = windows
         .values()
@@ -235,12 +320,7 @@ fn sanitize_cache(value: Value) -> WindowStateCache {
     let mut seen_order: HashSet<String> = HashSet::new();
     if let Some(order_source) = source.get("windowOrder").and_then(Value::as_array) {
         for item in order_source {
-            let key = item
-                .as_str()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(ToOwned::to_owned)
-                .unwrap_or_default();
+            let key = resolve_key(item);
             if key.is_empty() || !existing_ids.contains(&key) || !seen_order.insert(key.clone()) {
                 continue;
             }
@@ -257,12 +337,7 @@ fn sanitize_cache(value: Value) -> WindowStateCache {
     let mut hidden_stack = Vec::new();
     if let Some(hidden_source) = source.get("hiddenStack").and_then(Value::as_array) {
         for item in hidden_source {
-            let key = item
-                .as_str()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(ToOwned::to_owned)
-                .unwrap_or_default();
+            let key = resolve_key(item);
             if key.is_empty() || !existing_ids.contains(&key) {
                 continue;
             }
@@ -308,72 +383,27 @@ fn sanitize_cache(value: Value) -> WindowStateCache {
         }
     };
 
-    WindowStateCache {
+    Ok(WindowStateCache {
         version: CACHE_VERSION,
         updated_at,
         windows,
         window_order,
         hidden_stack,
         visible_window_toggle_snapshot,
-    }
-}
-
-fn cache_file_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("Failed to resolve app data directory: {error}"))?;
-    fs::create_dir_all(&app_data_dir)
-        .map_err(|error| format!("Failed to create app data directory: {error}"))?;
-    Ok(app_data_dir.join(CACHE_FILE_NAME))
-}
-
-fn read_cache_unlocked(app: &tauri::AppHandle) -> Result<WindowStateCache, String> {
-    let cache_file = cache_file_path(app)?;
-    let content = match fs::read_to_string(cache_file) {
-        Ok(value) => value,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(build_empty_cache());
-        }
-        Err(error) => return Err(format!("Failed to read window state cache: {error}")),
-    };
-    let value = match serde_json::from_str::<Value>(&content) {
-        Ok(value) => value,
-        Err(_) => return Ok(build_empty_cache()),
-    };
-    Ok(sanitize_cache(value))
-}
-
-fn write_cache_unlocked(app: &tauri::AppHandle, cache: &WindowStateCache) -> Result<(), String> {
-    let cache_file = cache_file_path(app)?;
-    let content = serde_json::to_string_pretty(cache)
-        .map_err(|error| format!("Failed to serialize window state cache: {error}"))?;
-    fs::write(cache_file, content)
-        .map_err(|error| format!("Failed to write window state cache: {error}"))
+    })
 }
 
 fn read_cache(app: &tauri::AppHandle) -> Result<WindowStateCache, String> {
-    let state = app.state::<WindowStateStore>();
-    let _guard = state
-        .0
-        .lock()
-        .map_err(|_| String::from("Failed to lock window state cache"))?;
-    read_cache_unlocked(app)
+    app.state::<crate::document::DocumentService>().cache.read()
 }
 
 fn mutate_cache<T>(
     app: &tauri::AppHandle,
-    updater: impl FnOnce(&mut WindowStateCache) -> T,
+    update: impl FnOnce(&mut WindowStateCache) -> T,
 ) -> Result<T, String> {
-    let state = app.state::<WindowStateStore>();
-    let _guard = state
-        .0
-        .lock()
-        .map_err(|_| String::from("Failed to lock window state cache"))?;
-    let mut cache = read_cache_unlocked(app)?;
-    let value = updater(&mut cache);
-    write_cache_unlocked(app, &cache)?;
-    Ok(value)
+    app.state::<crate::document::DocumentService>()
+        .cache
+        .mutate(update)
 }
 
 fn resolve_cache_key_by_window_id(cache: &WindowStateCache, window_id: &str) -> Option<String> {
@@ -411,10 +441,6 @@ fn set_hidden_stack(cache: &mut WindowStateCache, cache_key: &str, push_hidden_t
 
 fn clear_hidden_stack(cache: &mut WindowStateCache, cache_key: &str) {
     cache.hidden_stack.retain(|item| item != cache_key);
-}
-
-pub fn load_window_state_cache(app: &tauri::AppHandle) -> Result<WindowStateCache, String> {
-    read_cache(app)
 }
 
 pub fn load_windows_for_startup(app: &tauri::AppHandle) -> Result<Vec<CachedWindowState>, String> {
@@ -462,12 +488,6 @@ pub fn get_most_recent_hidden_window_state(
         return Ok(Some(state.clone()));
     }
     Ok(None)
-}
-
-pub fn list_window_states_in_order(
-    app: &tauri::AppHandle,
-) -> Result<Vec<CachedWindowState>, String> {
-    load_windows_for_startup(app)
 }
 
 pub fn list_hidden_window_ids(app: &tauri::AppHandle) -> Result<Vec<String>, String> {
@@ -589,6 +609,46 @@ fn apply_upsert_window_state(
     cache.updated_at = now.to_string();
 }
 
+pub fn register_window(
+    app: &tauri::AppHandle,
+    previous: Option<&CachedWindowState>,
+    state: CachedWindowState,
+) -> Result<(), String> {
+    mutate_cache(app, |cache| {
+        if let Some(previous) = previous {
+            let old_key = build_note_cache_key(&previous.note_path);
+            let new_key = build_note_cache_key(&state.note_path);
+            if old_key != new_key {
+                cache.windows.remove(&old_key);
+                for keys in [&mut cache.window_order, &mut cache.hidden_stack] {
+                    for key in keys.iter_mut() {
+                        if *key == old_key {
+                            *key = new_key.clone();
+                        }
+                    }
+                    let mut seen = HashSet::new();
+                    keys.retain(|key| seen.insert(key.clone()));
+                }
+            }
+            for label in &mut cache.visible_window_toggle_snapshot {
+                if *label == previous.window_id {
+                    *label = state.window_id.clone();
+                }
+            }
+            let mut seen = HashSet::new();
+            cache
+                .visible_window_toggle_snapshot
+                .retain(|label| seen.insert(label.clone()));
+        }
+        apply_upsert_window_state(
+            cache,
+            state,
+            &UpdateWindowStateOptions::default(),
+            &timestamp_now(),
+        );
+    })
+}
+
 pub fn upsert_window_state(
     app: &tauri::AppHandle,
     state: CachedWindowState,
@@ -622,6 +682,18 @@ mod tests {
             },
             updated_at: String::new(),
         }
+    }
+
+    #[test]
+    fn invalid_entries_preserve_the_original_cache() {
+        let directory = crate::storage::test_directory();
+        let path = directory.path().join("windows.json");
+        let original = br#"{"version":1,"windows":{"entry":{"windowId":"note-test"}}}"#;
+        fs::write(&path, original).unwrap();
+        let store = WindowStateStore::new(path.clone());
+        assert!(store.read().is_err());
+        assert!(store.remove_windows(&["note-test".into()]).is_err());
+        assert_eq!(fs::read(path).unwrap(), original);
     }
 
     #[test]
@@ -768,28 +840,6 @@ pub fn set_window_visibility_by_labels(
             } else {
                 clear_hidden_stack(cache, &cache_key);
             }
-        }
-        cache.updated_at = now;
-    })
-}
-
-pub fn remove_window_state(app: &tauri::AppHandle, window_id: &str) -> Result<(), String> {
-    mutate_cache(app, |cache| {
-        let Some(cache_key) = resolve_cache_key_by_window_id(cache, window_id) else {
-            return;
-        };
-        let now = timestamp_now();
-        let removed_window_id = cache
-            .windows
-            .get(&cache_key)
-            .map(|state| state.window_id.clone());
-        cache.windows.remove(&cache_key);
-        cache.window_order.retain(|item| item != &cache_key);
-        cache.hidden_stack.retain(|item| item != &cache_key);
-        if let Some(window_id) = removed_window_id {
-            cache
-                .visible_window_toggle_snapshot
-                .retain(|item| item != &window_id);
         }
         cache.updated_at = now;
     })

@@ -17,7 +17,8 @@ export type NoteContextMenuAction =
   | "toggle-maximize"
   | "toggle-read-only"
   | "hide-window"
-  | "close-window";
+  | "close-window"
+  | "delete-note";
 
 export interface NoteContextMenuContext {
   targetWindowLabel: string;

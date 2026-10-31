@@ -5,8 +5,8 @@ use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, Webvie
 use crate::window_state::{self, UpdateWindowStateOptions, WindowVisibility};
 use crate::{
     NEW_NOTE_WINDOW_HEIGHT, NEW_NOTE_WINDOW_WIDTH, NOTE_WINDOW_HEIGHT, NOTE_WINDOW_MIN_HEIGHT,
-    NOTE_WINDOW_MIN_WIDTH, NOTE_WINDOW_WIDTH, OpenNoteWindowOptions, build_note_window_id,
-    build_note_window_url, capture_note_window_state, clamp_note_opacity, clamp_note_scroll_top,
+    NOTE_WINDOW_MIN_WIDTH, NOTE_WINDOW_WIDTH, OpenNoteWindowOptions, build_note_window_url,
+    capture_note_window_state, clamp_note_opacity, clamp_note_scroll_top,
     load_hide_note_windows_from_taskbar, shake_existing_window,
 };
 
@@ -488,7 +488,7 @@ pub fn open_startup_update_window(app: &tauri::AppHandle) {
     }
 }
 
-pub fn open_note_window(
+pub fn build_note_window(
     app: tauri::AppHandle,
     note_id: String,
     options: Option<OpenNoteWindowOptions>,
@@ -511,7 +511,7 @@ pub fn open_note_window(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
-        .unwrap_or_else(|| build_note_window_id(&note_path));
+        .ok_or_else(|| String::from("windowId is required"))?;
     let visibility = options
         .visibility
         .unwrap_or(window_state::WindowVisibility::Visible);
@@ -583,6 +583,8 @@ pub fn open_note_window(
             Some(&normalized_note_id),
             &note_path,
             Some(opacity),
+            read_only,
+            scroll_top,
         );
         let (initial_width, initial_height) = if center_on_create {
             (NEW_NOTE_WINDOW_WIDTH, NEW_NOTE_WINDOW_HEIGHT)
@@ -621,26 +623,16 @@ pub fn open_note_window(
                 .set_position(PhysicalPosition::new(bounds.x, bounds.y))
                 .map_err(|error| format!("Failed to set new window position: {error}"))?;
         }
-        if visibility == window_state::WindowVisibility::Visible {
-            window
-                .show()
-                .map_err(|error| format!("Failed to show new window: {error}"))?;
-            info!("open_note_window_show_completed window_id={window_id:?}");
-            if should_focus {
-                window
-                    .set_focus()
-                    .map_err(|error| format!("Failed to focus new window: {error}"))?;
-                info!("open_note_window_focus_completed window_id={window_id:?}");
-            }
-        }
-        capture_note_window_state(
+        let mut state = capture_note_window_state(
             &window,
             &normalized_note_id,
             &note_path,
             read_only,
             opacity,
             scroll_top,
-        )
+        )?;
+        state.visibility = visibility;
+        Ok(state)
     })();
     match &result {
         Ok(state) => info!(

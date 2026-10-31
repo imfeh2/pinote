@@ -45,13 +45,13 @@ import {
   getDefaultMarkdownOpenEnabled,
   getOpenWithPinoteEnabled,
   getRuntimePlatform,
+  openNoteWindow,
   type RuntimePlatform,
   setDefaultMarkdownOpenEnabled,
   setGlobalShortcuts,
   setNoteWindowsSkipTaskbar,
   setOpenWithPinoteEnabled,
 } from "@/lib/windowApi";
-import { openAndTrackNoteWindow } from "@/lib/windowManager";
 
 const REPOSITORY_URL = "https://github.com/imfeh2/pinote";
 const HISTORY_SEARCH_DEBOUNCE_MS = 120;
@@ -483,10 +483,8 @@ export function SettingsApp() {
       if (!notePath) return;
       setHistoryOpeningPath(notePath);
       try {
-        await openAndTrackNoteWindow({
-          noteId: item.noteId,
+        await openNoteWindow({
           notePath,
-          windowId: item.windowId.trim() || undefined,
           visibility: "visible",
           focus: true,
         });

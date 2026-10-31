@@ -29,6 +29,7 @@ export const shortcutItems = [
   { key: "toggleTheme", labelKey: "shortcuts.items.toggleTheme" },
   { key: "hideWindow", labelKey: "shortcuts.items.hideWindow" },
   { key: "closeWindow", labelKey: "shortcuts.items.closeWindow" },
+  { key: "deleteNote", labelKey: "shortcuts.items.deleteNote" },
 ] as const;
 
 export type ShortcutKey = (typeof shortcutItems)[number]["key"];

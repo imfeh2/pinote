@@ -1,15 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { logError, logInfo } from "@/lib/logger";
-import { recordOpenedNote } from "@/lib/noteHistory";
-import { normalizeNoteId, resolveManagedNotePath } from "@/lib/notes";
 import type { WindowBounds, WindowVisibility } from "@/lib/windowStateCache";
 
 const NOTE_WINDOW_LABEL_PREFIX = "note-";
 const NOTE_CONTEXT_MENU_WINDOW_SUFFIX = "-context-menu";
 
 interface OpenNoteWindowOptions {
-  windowId?: string;
   notePath?: string;
   visibility?: WindowVisibility;
   focus?: boolean;
@@ -112,56 +109,13 @@ export async function bringNoteWindowsBackOnScreen() {
   return invoke<number>("bring_note_windows_back_on_screen");
 }
 
-export async function openNoteWindow(
-  noteId: string,
-  options: OpenNoteWindowOptions = {},
-) {
-  const normalizedNoteId = normalizeNoteId(noteId);
-  const notePath =
-    options.notePath?.trim() ||
-    (await resolveManagedNotePath(normalizedNoteId));
-  logInfo("window-api", "open_note_window_requested", {
-    noteId: normalizedNoteId,
-    notePath,
-    windowId: options.windowId,
-    visibility: options.visibility,
-    focus: options.focus,
-    centerOnCreate: options.centerOnCreate,
-    skipTaskbar: options.skipTaskbar,
-  });
-  let opened: OpenedNoteWindow;
-  try {
-    opened = await invoke<OpenedNoteWindow>("open_note_window", {
-      noteId: normalizedNoteId,
-      options: {
-        ...options,
-        notePath,
-      },
-    });
-  } catch (error) {
-    logError("window-api", "open_note_window_failed", error, {
-      noteId: normalizedNoteId,
-      notePath,
-      windowId: options.windowId,
-    });
-    throw error;
-  }
+export async function openNoteWindow(options: OpenNoteWindowOptions = {}) {
+  const command = options.notePath ? "open_note_window" : "create_note_window";
+  const opened = await invoke<OpenedNoteWindow>(command, { options });
   logInfo("window-api", "open_note_window_finished", {
     noteId: opened.noteId,
     notePath: opened.notePath,
     windowId: opened.windowId,
-    visibility: opened.visibility,
-  });
-  void recordOpenedNote({
-    notePath: opened.notePath,
-    noteId: opened.noteId,
-    windowId: opened.windowId,
-  }).catch((error) => {
-    logError("window-api", "record_note_history_failed", error, {
-      notePath: opened.notePath,
-      noteId: opened.noteId,
-      windowId: opened.windowId,
-    });
   });
   return opened;
 }

@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/Button";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
 import {
@@ -24,8 +25,6 @@ import { cn } from "@/lib/utils";
 
 const MENU_EDGE_GAP = 8;
 const MENU_MAX_WIDTH = 360;
-const MENU_MIN_HEIGHT = 96;
-const MENU_MAX_HEIGHT = 640;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -53,6 +52,7 @@ function ContextMenuApp({
   const menuWindowLabel = menuWindow.label;
   const shellRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const actionsRef = useRef<HTMLDivElement | null>(null);
   const titleViewportRef = useRef<HTMLDivElement | null>(null);
   const titleTextRef = useRef<HTMLDivElement | null>(null);
@@ -227,11 +227,12 @@ function ContextMenuApp({
         panel.style.width = panelWidthValue;
       }
       updateTitleOverflow();
-      const measuredShellRect = shell.getBoundingClientRect();
-      const heightCss = clamp(
-        Math.ceil(measuredShellRect.height),
-        MENU_MIN_HEIGHT,
-        MENU_MAX_HEIGHT,
+      const heightCss = Math.ceil(
+        panel.scrollHeight +
+          parsePx(panelStyles.borderTopWidth) +
+          parsePx(panelStyles.borderBottomWidth) +
+          parsePx(shellStyles.paddingTop) +
+          parsePx(shellStyles.paddingBottom),
       );
       void Promise.all([menuWindow.scaleFactor(), menuWindow.innerSize()])
         .then(async ([scaleFactor, size]) => {
@@ -332,6 +333,7 @@ function ContextMenuApp({
       updateTitleOverflow();
     });
     observer.observe(shell);
+    if (contentRef.current) observer.observe(contentRef.current);
     return () => {
       observer.disconnect();
     };
@@ -358,13 +360,13 @@ function ContextMenuApp({
     <div ref={shellRef} className="inline-block">
       <div
         ref={panelRef}
-        className="pinote-context-menu-panel pinote-scrollbar relative max-w-full overflow-y-auto rounded-lg border border-transparent bg-transparent p-1 shadow-none"
+        className="pinote-context-menu-panel relative max-w-full rounded-lg border border-transparent bg-transparent p-1 shadow-none"
       >
         <div
           style={menuVisualStyle}
           className="pointer-events-none absolute inset-0 rounded-[inherit] border border-border bg-background shadow-lg"
         />
-        <div className="relative">
+        <div ref={contentRef} className="relative">
           <button
             type="button"
             onClick={revealNoteFile}
@@ -456,6 +458,13 @@ function ContextMenuApp({
             >
               {t("closeWindow")}
             </button>
+            <Button
+              variant="ghost"
+              className="h-auto justify-start rounded px-2 py-1.5 text-left font-normal text-destructive"
+              onClick={() => dispatchAction("delete-note")}
+            >
+              {t("deleteNote")}
+            </Button>
           </div>
         </div>
       </div>

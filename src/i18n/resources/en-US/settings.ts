@@ -123,6 +123,7 @@ export default {
       toggleTheme: "Switch theme",
       hideWindow: "Hide note",
       closeWindow: "Close note",
+      deleteNote: "Delete note",
     },
     global: {
       badge: "Global",

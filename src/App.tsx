@@ -9,23 +9,24 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertDialog } from "@/components/AlertDialog";
+import { Button } from "@/components/Button";
 import { Editor } from "@/components/Editor";
 import { WindowDragHandle } from "@/components/WindowDragHandle";
-import { useAutoSave } from "@/hooks/useAutoSave";
-import { useNoteExternalSync } from "@/hooks/useNoteExternalSync";
 import { useNoteWindowActions } from "@/hooks/useNoteWindowActions";
 import { useNoteWindowMouseInteractions } from "@/hooks/useNoteWindowMouseInteractions";
 import { useNoteWindowState } from "@/hooks/useNoteWindowState";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
 import { useWindowControl } from "@/hooks/useWindowControl";
+import { useWorkingCopy } from "@/hooks/useWorkingCopy";
 import { logError } from "@/lib/logger";
-import { recordOpenedNote } from "@/lib/noteHistory";
 import {
   bringNoteWindowsBackOnScreen,
   getRuntimePlatform,
   type RuntimePlatform,
 } from "@/lib/windowApi";
+import { type EndResult, WorkingCopy } from "@/lib/workingCopy";
 import type { WindowsGlassEffect } from "@/stores/settings";
 import "@/styles/App.css";
 
@@ -66,10 +67,14 @@ function App({
   noteId,
   notePath,
   initialOpacity,
+  initialReadOnly = false,
+  initialScrollTop = 0,
 }: {
   noteId: string;
   notePath: string;
   initialOpacity?: number;
+  initialReadOnly?: boolean;
+  initialScrollTop?: number;
 }) {
   const { t } = useTranslation("note");
   const { toggleTheme } = useTheme();
@@ -83,24 +88,17 @@ function App({
     NOTE_OPACITY_MIN,
     NOTE_OPACITY_MAX,
   );
-  const [initialContent, setInitialContent] = useState<string | null>(null);
+  const [workingCopy] = useState(() => new WorkingCopy());
+  const [dialog, setDialog] = useState<"delete" | "discard" | null>(null);
+  const [deleteResult, setDeleteResult] = useState<EndResult | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const [noteOpacity, setNoteOpacityState] = useState(initialWindowOpacity);
   const noteOpacityRef = useRef(initialWindowOpacity);
-  const noteReadOnlyRef = useRef(false);
-  const scrollPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const noteScrollTopRef = useRef(0);
-  const latestEditorContentRef = useRef("");
-  const isSavePendingRef = useRef<() => boolean>(() => false);
-  const windowStateReadyRef = useRef(false);
-  const closeRequestState = useRef<"idle" | "persisting" | "ready">("idle");
-  const forceHiddenVisibilityRef = useRef(false);
-  const hideInProgressRef = useRef(false);
+  const noteReadOnlyRef = useRef(initialReadOnly);
+  const noteScrollTopRef = useRef(initialScrollTop);
   const [runtimePlatform, setRuntimePlatform] =
     useState<RuntimePlatform>("other");
-  const [editorReloadToken, setEditorReloadToken] = useState(0);
-  const [noteReadOnly, setNoteReadOnly] = useState(false);
+  const [noteReadOnly, setNoteReadOnly] = useState(initialReadOnly);
   const [broughtBackFeedback, setBroughtBackFeedback] = useState(false);
 
   useEffect(() => {
@@ -110,20 +108,6 @@ function App({
   useEffect(() => {
     noteReadOnlyRef.current = noteReadOnly;
   }, [noteReadOnly]);
-
-  useEffect(() => {
-    void recordOpenedNote({
-      notePath,
-      noteId,
-      windowId: windowLabel,
-    }).catch((error) => {
-      logError("note-window", "record_note_history_failed_on_mount", error, {
-        notePath,
-        noteId,
-        windowId: windowLabel,
-      });
-    });
-  }, [noteId, notePath, windowLabel]);
 
   useEffect(() => {
     let disposed = false;
@@ -233,66 +217,49 @@ function App({
     initialEditorScrollTop,
     persistWindowState,
     setInitialEditorScrollTop,
-    windowStateReady,
   } = useNoteWindowState({
     appWindow,
-    closeRequestState,
-    forceHiddenVisibilityRef,
-    hideInProgressRef,
-    noteId,
+    document: workingCopy,
+    initialScrollTop,
     noteOpacityRef,
-    notePath,
     noteReadOnlyRef,
     noteScrollTopRef,
-    scrollPersistTimerRef,
-    setNoteOpacityState,
-    setNoteReadOnly,
-    windowLabel,
   });
 
-  useEffect(() => {
-    windowStateReadyRef.current = windowStateReady;
-  }, [windowStateReady]);
+  const state = useWorkingCopy(
+    workingCopy,
+    appWindow,
+    notePath,
+    () => setInitialEditorScrollTop(Math.max(0, noteScrollTopRef.current)),
+    persistWindowState,
+  );
+  const busy = ["closing", "deleting", "quitting"].includes(state.phase);
+  const interactionBlocked = dialog !== null || state.phase !== "ready";
+  const requestDelete = useCallback(() => {
+    if (workingCopy.getSnapshot().phase !== "ready") return;
+    returnFocusRef.current = globalThis.document
+      .activeElement as HTMLElement | null;
+    setDeleteResult(null);
+    setDialog("delete");
+  }, [workingCopy]);
+  const retry = async () => {
+    if (workingCopy.hasEndRequest) await workingCopy.retryEnd();
+    else if (state.phase === "loading") await workingCopy.load();
+    else if (await workingCopy.checkExternal()) {
+      const saved = await workingCopy.save();
+      if ((await persistWindowState()) && saved) workingCopy.dismissError();
+    }
+  };
 
   const toggleAlwaysOnTop = useCallback(async () => {
     const changed = await toggleWindowAlwaysOnTop();
-    if (changed && windowStateReadyRef.current) await persistWindowState();
+    if (changed) await persistWindowState();
   }, [persistWindowState, toggleWindowAlwaysOnTop]);
-
-  const {
-    applyLoadedContent,
-    dismissExternalFileChange,
-    handlePersistedContent,
-    hasExternalFileChange,
-    reloadExternalFileContent,
-  } = useNoteExternalSync({
-    initialContent,
-    isSavePending: () => isSavePendingRef.current(),
-    latestEditorContentRef,
-    notePath,
-    noteScrollTopRef,
-    setEditorReloadToken,
-    setInitialContent,
-    setInitialEditorScrollTop,
-  });
-
-  const { save, load, isSavePending } = useAutoSave(notePath, {
-    onPersisted: handlePersistedContent,
-  });
-
-  useEffect(() => {
-    isSavePendingRef.current = isSavePending;
-  }, [isSavePending]);
-
-  useEffect(() => {
-    load().then((content) => {
-      applyLoadedContent(content);
-    });
-  }, [applyLoadedContent, load]);
 
   const { openContextMenu } = useNoteWindowMouseInteractions({
     appWindow,
     dragMouseButton: settings.dragMouseButton,
+    interactionBlocked,
     noteId,
     notePath,
     noteOpacityRef,
@@ -309,6 +276,8 @@ function App({
   const { startWindowDrag } = useNoteWindowActions({
     appWindow,
     hideWindow,
+    interactionBlocked,
+    requestDelete,
     noteOpacityRef,
     notePath,
     noteReadOnlyRef,
@@ -323,10 +292,9 @@ function App({
   const handleChange = useCallback(
     (markdown: string) => {
       if (noteReadOnlyRef.current) return;
-      latestEditorContentRef.current = markdown;
-      save(markdown);
+      workingCopy.edit(markdown);
     },
-    [save],
+    [workingCopy],
   );
 
   useEffect(() => {
@@ -435,24 +403,13 @@ function App({
     } as CSSProperties;
   }, [noteOpacity]);
 
-  if (initialContent === null) {
-    return (
-      <div className="flex h-screen items-center justify-center rounded-lg bg-background">
-        <div
-          className="text-sm text-muted-foreground"
-          role="status"
-          aria-live="polite"
-        >
-          {t("loading")}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <main
       data-pinned={alwaysOnTop ? "true" : "false"}
-      data-read-only={noteReadOnly ? "true" : "false"}
+      data-read-only={
+        noteReadOnly || state.phase !== "ready" ? "true" : "false"
+      }
+      aria-busy={busy || state.phase === "loading"}
       data-brought-back={broughtBackFeedback ? "true" : "false"}
       className="pinote-window relative flex h-screen flex-col overflow-hidden rounded-lg"
       style={pinnedVisualStyle}
@@ -463,28 +420,79 @@ function App({
         style={noteBackgroundStyle}
       />
       <WindowDragHandle onMouseDown={startWindowDrag} />
-      {hasExternalFileChange ? (
+      {(state.error && state.error.kind !== "conflict") ||
+      state.phase === "ended" ? (
         <div
-          className="absolute left-2 right-2 top-2 z-40 flex items-center gap-2 rounded-md border border-amber-400/50 bg-amber-300/20 px-2.5 py-1.5 text-xs text-amber-950 shadow-sm dark:border-amber-300/45 dark:bg-amber-200/12 dark:text-amber-100"
+          className="relative z-40 max-h-[60vh] shrink-0 overflow-y-auto border-b border-border bg-background p-2 text-xs"
           role="alert"
         >
-          <span className="min-w-0 flex-1 truncate">
+          <p className="break-words">
+            {t(`errors.${state.error?.kind ?? "ended"}`)}
+          </p>
+          {state.error && "message" in state.error ? (
+            <p className="mt-1 break-words text-muted-foreground">
+              {state.error.message}
+            </p>
+          ) : null}
+          <div className="mt-2 flex flex-wrap gap-1">
+            {state.phase !== "ended" ? (
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  void retry();
+                }}
+              >
+                {t("actions.retry")}
+              </Button>
+            ) : null}
+            {workingCopy.dirty && state.phase === "ready" ? (
+              <Button
+                onClick={() => {
+                  returnFocusRef.current = globalThis.document
+                    .activeElement as HTMLElement | null;
+                  setDialog("discard");
+                }}
+              >
+                {t("actions.discard")}
+              </Button>
+            ) : null}
+            <Button
+              disabled={busy}
+              onClick={() => {
+                void workingCopy.end("close");
+              }}
+            >
+              {t("actions.close")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {state.external ? (
+        <div
+          className="relative z-40 flex max-h-[60vh] shrink-0 flex-wrap items-center gap-2 overflow-y-auto border-b border-amber-400/50 bg-amber-300/20 px-2.5 py-1.5 text-xs text-amber-950 dark:border-amber-300/45 dark:bg-amber-200/12 dark:text-amber-100"
+          role="alert"
+        >
+          <span className="min-w-0 flex-1 break-words">
             {t("externalChange.message")}
           </span>
-          <button
-            type="button"
-            onClick={reloadExternalFileContent}
-            className="rounded px-1.5 py-0.5 font-medium text-amber-950 hover:bg-amber-300/40 dark:text-amber-100 dark:hover:bg-amber-200/20"
+          <Button
+            variant="ghost"
+            disabled={interactionBlocked}
+            onClick={() => {
+              void workingCopy.reloadExternal();
+            }}
           >
             {t("externalChange.reload")}
-          </button>
-          <button
-            type="button"
-            onClick={dismissExternalFileChange}
-            className="rounded px-1.5 py-0.5 text-amber-900/90 hover:bg-amber-300/28 dark:text-amber-100/90 dark:hover:bg-amber-200/16"
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={interactionBlocked}
+            onClick={() => {
+              void workingCopy.keepCurrent();
+            }}
           >
             {t("externalChange.ignore")}
-          </button>
+          </Button>
         </div>
       ) : null}
       <div className="pointer-events-none absolute right-3 top-3 z-30 flex items-center gap-1.5">
@@ -510,15 +518,97 @@ function App({
         ) : null}
       </div>
       <div className="relative flex flex-1 flex-col overflow-hidden">
-        <Editor
-          key={`editor-${editorReloadToken}`}
-          defaultValue={initialContent}
-          onChange={handleChange}
-          readOnly={noteReadOnly}
-          initialScrollTop={initialEditorScrollTop}
-          onScrollTopChange={handleScrollTopChange}
-          style={editorStyle}
-        />
+        {state.content === null ? (
+          <div
+            className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground"
+            role="status"
+          >
+            {state.error ? null : t("loading")}
+          </div>
+        ) : (
+          <Editor
+            key={`editor-${state.reload}`}
+            defaultValue={state.content}
+            onChange={handleChange}
+            readOnly={noteReadOnly || interactionBlocked}
+            initialScrollTop={initialEditorScrollTop}
+            onScrollTopChange={handleScrollTopChange}
+            style={editorStyle}
+          />
+        )}
+        <AlertDialog
+          open={dialog !== null}
+          title={dialog === "delete" ? t("deletion.title") : t("discard.title")}
+          description={
+            dialog === "delete"
+              ? state.phase === "ended"
+                ? deleteResult?.ended && deleteResult.error?.kind === "io"
+                  ? t("deletion.cleanupFailed")
+                  : t("errors.ended")
+                : t("deletion.description")
+              : t("discard.description")
+          }
+          cancelLabel={t("actions.cancel")}
+          busy={busy}
+          returnFocusRef={returnFocusRef}
+          onClose={() => {
+            setDialog(null);
+            workingCopy.dismissError();
+          }}
+          actions={
+            state.phase === "ended"
+              ? [
+                  {
+                    label: t("actions.close"),
+                    onAction: () => {
+                      void workingCopy.end("close");
+                    },
+                  },
+                ]
+              : [
+                  {
+                    label:
+                      dialog === "delete"
+                        ? deleteResult
+                          ? t("actions.retry")
+                          : t("deletion.confirm")
+                        : t("actions.discard"),
+                    destructive: true,
+                    onAction: () => {
+                      if (dialog === "delete")
+                        void workingCopy.end("delete").then((result) => {
+                          if (result) setDeleteResult(result);
+                        });
+                      else void workingCopy.end("close", true);
+                    },
+                  },
+                ]
+          }
+        >
+          {dialog === "delete" && deleteResult?.error ? (
+            <p
+              className="shrink-0 break-words text-xs text-destructive"
+              role="alert"
+            >
+              {deleteResult.error.kind === "unknown"
+                ? t("errors.unknown")
+                : state.phase === "ended"
+                  ? t(`errors.${deleteResult.error.kind}`)
+                  : t("deletion.failed")}
+              {"message" in deleteResult.error
+                ? ` ${deleteResult.error.message}`
+                : ""}
+            </p>
+          ) : null}
+          {dialog === "discard" && state.error ? (
+            <p
+              className="shrink-0 break-words text-xs text-destructive"
+              role="alert"
+            >
+              {t(`errors.${state.error.kind}`)}
+            </p>
+          ) : null}
+        </AlertDialog>
       </div>
     </main>
   );

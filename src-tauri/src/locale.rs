@@ -41,6 +41,7 @@ impl NativeLocaleState {
 
 #[derive(Clone, Copy)]
 pub struct NativeText {
+    pub exit_failed: &'static str,
     pub restore_hidden: &'static str,
     pub open_settings: &'static str,
     pub quit: &'static str,
@@ -51,6 +52,7 @@ pub struct NativeText {
 }
 
 const EN_US_TEXT: NativeText = NativeText {
+    exit_failed: "Some notes could not be saved. Check the open notes and try again.",
     restore_hidden: "Show note",
     open_settings: "Settings",
     quit: "Quit",
@@ -61,6 +63,7 @@ const EN_US_TEXT: NativeText = NativeText {
 };
 
 const ZH_CN_TEXT: NativeText = NativeText {
+    exit_failed: "部分便签未能保存，请检查便签后重试。",
     restore_hidden: "显示便签",
     open_settings: "设置",
     quit: "退出",

@@ -1,6 +1,9 @@
+mod document;
+mod lifecycle;
 mod locale;
 mod note_history;
 mod shortcut;
+mod storage;
 mod tray;
 mod window;
 mod window_state;
@@ -15,7 +18,7 @@ use std::{
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri::{Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Manager, PhysicalPosition, WebviewWindow};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use uuid::Uuid;
 #[cfg(target_os = "windows")]
@@ -25,7 +28,6 @@ use winreg::{
 };
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
-const NOTE_WINDOW_PREFIX: &str = "note-";
 const NOTE_WINDOW_WIDTH: f64 = 400.0;
 const NOTE_WINDOW_HEIGHT: f64 = 500.0;
 const NEW_NOTE_WINDOW_WIDTH: f64 = 360.0;
@@ -172,27 +174,13 @@ fn parse_cli_open_note_requests(argv: &[String], cwd: Option<&str>) -> Vec<CliOp
         let Some(note_path) = resolve_cli_note_path(arg, cwd_path.as_deref()) else {
             continue;
         };
-        let dedupe_key = note_path.to_lowercase();
+        let dedupe_key = document::path_key(Path::new(&note_path));
         if !seen.insert(dedupe_key) {
             continue;
         }
         requests.push(CliOpenNoteRequest { note_path });
     }
     requests
-}
-
-fn hash_fnv1a_utf16(value: &str) -> String {
-    let mut hash: u32 = 0x811c9dc5;
-    for code_unit in value.encode_utf16() {
-        hash ^= code_unit as u32;
-        hash = hash.wrapping_mul(0x01000193);
-    }
-    format!("{hash:08x}")
-}
-
-fn build_note_window_id(note_path: &str) -> String {
-    let normalized = note_path.trim().to_lowercase();
-    format!("{NOTE_WINDOW_PREFIX}{}", hash_fnv1a_utf16(&normalized))
 }
 
 fn extract_note_id_from_path(note_path: &str) -> String {
@@ -225,6 +213,8 @@ fn build_note_window_url(
     note_id: Option<&str>,
     note_path: &str,
     note_opacity: Option<f64>,
+    read_only: bool,
+    scroll_top: f64,
 ) -> String {
     let encoded_window_id = encode_query_component(window_id);
     let encoded_note_path = encode_query_component(note_path);
@@ -243,6 +233,9 @@ fn build_note_window_url(
         url.push_str("&noteOpacity=");
         url.push_str(&encoded_note_opacity);
     }
+    url.push_str(&format!(
+        "&noteReadOnly={read_only}&noteScrollTop={scroll_top}"
+    ));
     url
 }
 
@@ -499,161 +492,59 @@ fn resolve_managed_notes_directory(app: &tauri::AppHandle) -> Option<PathBuf> {
         .map(|dir| dir.join(DEFAULT_NOTE_DIRECTORY_NAME))
 }
 
-fn create_startup_note_file(app: &tauri::AppHandle) -> Option<String> {
-    let notes_dir = resolve_managed_notes_directory(app)?;
-    if std::fs::create_dir_all(&notes_dir).is_err() {
-        return None;
-    }
-    let note_id = Uuid::new_v4().to_string();
-    let note_path = notes_dir.join(format!("{note_id}.md"));
-    if !note_path.exists() && std::fs::write(&note_path, "").is_err() {
-        return None;
-    }
-    Some(note_path.to_string_lossy().into_owned())
-}
-
-fn load_cached_windows_for_startup(app: &tauri::AppHandle) -> Vec<window_state::CachedWindowState> {
-    window_state::load_windows_for_startup(app).unwrap_or_default()
-}
-
-fn restore_cached_note_windows(app: &tauri::AppHandle, skip_taskbar: bool) -> usize {
-    let cached_windows = load_cached_windows_for_startup(app);
-    if cached_windows.is_empty() {
-        return 0;
-    }
-    let mut restored = 0usize;
-    let mut last_visible_window: Option<WebviewWindow> = None;
+async fn restore_cached_note_windows(
+    app: &tauri::AppHandle,
+    skip_taskbar: bool,
+) -> Result<usize, String> {
+    let cached_windows = window_state::load_windows_for_startup(app)?;
+    let mut restored = 0;
     for cached in cached_windows {
-        let window_id = cached.window_id.trim();
-        let note_path = cached.note_path.trim();
-        if window_id.is_empty() || note_path.is_empty() {
-            continue;
+        let result = app
+            .state::<document::DocumentService>()
+            .open(
+                app.clone(),
+                OpenNoteWindowOptions {
+                    note_path: Some(cached.note_path),
+                    visibility: Some(cached.visibility),
+                    always_on_top: Some(cached.always_on_top),
+                    read_only: Some(cached.read_only),
+                    opacity: Some(cached.opacity),
+                    scroll_top: Some(cached.scroll_top),
+                    bounds: Some(cached.bounds),
+                    skip_taskbar: Some(skip_taskbar),
+                    ..Default::default()
+                },
+                false,
+            )
+            .await;
+        match result {
+            Ok(_) => restored += 1,
+            Err(error) => error!("restore_cached_window_failed error={error}"),
         }
-        let width = cached.bounds.width.max(NOTE_WINDOW_MIN_WIDTH).round();
-        let height = cached.bounds.height.max(NOTE_WINDOW_MIN_HEIGHT).round();
-        let position_x = cached.bounds.x;
-        let position_y = cached.bounds.y;
-        let visible = cached.visibility != window_state::WindowVisibility::Hidden;
-
-        if let Some(existing) = app.get_webview_window(window_id) {
-            let _ = existing.set_skip_taskbar(skip_taskbar);
-            let _ = existing.set_always_on_top(cached.always_on_top);
-            let _ = existing.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-                width as u32,
-                height as u32,
-            )));
-            let _ = existing.set_position(PhysicalPosition::new(position_x, position_y));
-            if visible {
-                let _ = existing.show();
-                last_visible_window = Some(existing);
-            } else {
-                let _ = existing.hide();
-            }
-            restored += 1;
-            continue;
-        }
-
-        let url = build_note_window_url(
-            window_id,
-            Some(&cached.note_id),
-            note_path,
-            Some(cached.opacity),
-        );
-        let window = match WebviewWindowBuilder::new(app, window_id, WebviewUrl::App(url.into()))
-            .title("Pinote")
-            .inner_size(NOTE_WINDOW_WIDTH, NOTE_WINDOW_HEIGHT)
-            .min_inner_size(NOTE_WINDOW_MIN_WIDTH, NOTE_WINDOW_MIN_HEIGHT)
-            .decorations(false)
-            .transparent(true)
-            .resizable(true)
-            .always_on_top(cached.always_on_top)
-            .skip_taskbar(skip_taskbar)
-            .visible(false)
-            .build()
-        {
-            Ok(value) => value,
-            Err(err) => {
-                error!("restore_cached_window_failed window_id={window_id:?} error={err}");
-                continue;
-            }
-        };
-        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-            width as u32,
-            height as u32,
-        )));
-        let _ = window.set_position(PhysicalPosition::new(position_x, position_y));
-        if visible {
-            let _ = window.show();
-            last_visible_window = Some(window);
-        } else {
-            let _ = window.hide();
-        }
-        restored += 1;
     }
-    if let Some(window) = last_visible_window {
-        let _ = window.set_focus();
-    }
-    restored
+    Ok(restored)
 }
 
-fn open_cli_note_windows_on_main_thread(app: &tauri::AppHandle, requests: &[CliOpenNoteRequest]) {
-    if requests.is_empty() {
-        return;
-    }
-    let skip_taskbar = load_hide_note_windows_from_taskbar(app);
-    let last_index = requests.len() - 1;
-    for (index, request) in requests.iter().enumerate() {
-        let note_path = request.note_path.trim();
-        if note_path.is_empty() {
-            continue;
-        }
-        let should_focus = index == last_index;
-        let window_id = build_note_window_id(note_path);
-        if let Some(existing) = app.get_webview_window(&window_id) {
-            if let Err(err) = existing.show() {
-                error!("cli_open_existing_window_show_failed window_id={window_id:?} error={err}");
-                continue;
-            }
-            if let Err(err) = existing.set_skip_taskbar(skip_taskbar) {
-                error!(
-                    "cli_open_existing_window_skip_taskbar_failed window_id={window_id:?} error={err}"
-                );
-            }
-            if should_focus {
-                if let Err(err) = existing.set_focus() {
-                    error!(
-                        "cli_open_existing_window_focus_failed window_id={window_id:?} error={err}"
-                    );
-                } else {
-                    shake_existing_window(&existing);
-                }
-            }
-            continue;
-        }
-        let url = build_note_window_url(&window_id, None, note_path, None);
-        let window = match WebviewWindowBuilder::new(app, &window_id, WebviewUrl::App(url.into()))
-            .title("Pinote")
-            .inner_size(NOTE_WINDOW_WIDTH, NOTE_WINDOW_HEIGHT)
-            .min_inner_size(NOTE_WINDOW_MIN_WIDTH, NOTE_WINDOW_MIN_HEIGHT)
-            .decorations(false)
-            .transparent(true)
-            .resizable(true)
-            .always_on_top(false)
-            .skip_taskbar(skip_taskbar)
-            .visible(true)
-            .build()
+async fn open_cli_requests(app: &tauri::AppHandle, requests: Vec<CliOpenNoteRequest>) {
+    let count = requests.len();
+    for (index, request) in requests.into_iter().enumerate() {
+        if let Err(error) = app
+            .state::<document::DocumentService>()
+            .open(
+                app.clone(),
+                OpenNoteWindowOptions {
+                    note_path: Some(request.note_path),
+                    focus: Some(index + 1 == count),
+                    ..Default::default()
+                },
+                true,
+            )
+            .await
         {
-            Ok(window) => window,
-            Err(err) => {
-                error!("cli_open_new_window_failed window_id={window_id:?} error={err}");
-                continue;
-            }
-        };
-        if should_focus && let Err(err) = window.set_focus() {
-            error!("cli_open_new_window_focus_failed window_id={window_id:?} error={err}");
+            error!("cli_open_failed error={error}");
         }
     }
-    let _ = window::bring_note_windows_back_on_screen(app);
+    window::bring_note_windows_back_on_screen(app);
 }
 
 fn shake_existing_window(window: &WebviewWindow) {
@@ -673,30 +564,24 @@ fn open_cli_note_windows(app: &tauri::AppHandle, requests: Vec<CliOpenNoteReques
         return;
     }
     let handle = app.clone();
-    if let Err(err) = app.run_on_main_thread(move || {
-        open_cli_note_windows_on_main_thread(&handle, &requests);
-    }) {
-        error!("cli_dispatch_main_thread_failed error={err}");
-    }
+    tauri::async_runtime::spawn(async move {
+        open_cli_requests(&handle, requests).await;
+    });
 }
 
 pub(crate) fn open_new_note_window(app: &tauri::AppHandle) {
     let handle = app.clone();
-    std::thread::spawn(move || {
-        if let Some(note_path) = create_startup_note_file(&handle) {
-            let _ = window::open_note_window(
-                handle.clone(),
-                extract_note_id_from_path(&note_path),
-                Some(OpenNoteWindowOptions {
-                    note_path: Some(note_path),
-                    visibility: Some(window_state::WindowVisibility::Visible),
-                    focus: Some(true),
-                    always_on_top: Some(false),
-                    skip_taskbar: Some(load_hide_note_windows_from_taskbar(&handle)),
-                    center_on_create: Some(true),
-                    ..OpenNoteWindowOptions::default()
-                }),
-            );
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = create_note_window(
+            handle,
+            Some(OpenNoteWindowOptions {
+                center_on_create: Some(true),
+                ..Default::default()
+            }),
+        )
+        .await
+        {
+            error!("new_note_failed error={error}");
         }
     });
 }
@@ -890,64 +775,36 @@ fn sync_windows_shell_locale(app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn load_window_state_cache(
+async fn save_note_preferences(
     app: tauri::AppHandle,
-) -> Result<window_state::WindowStateCache, String> {
-    window_state::load_window_state_cache(&app)
-}
-
-#[tauri::command]
-async fn get_window_state(
-    app: tauri::AppHandle,
-    window_id: String,
-) -> Result<Option<window_state::CachedWindowState>, String> {
-    window_state::get_window_state(&app, &window_id)
-}
-
-#[tauri::command]
-async fn get_window_state_by_note_path(
-    app: tauri::AppHandle,
-    note_path: String,
-) -> Result<Option<window_state::CachedWindowState>, String> {
-    window_state::get_window_state_by_note_path(&app, &note_path)
-}
-
-#[tauri::command]
-async fn get_most_recent_hidden_window_state(
-    app: tauri::AppHandle,
-) -> Result<Option<window_state::CachedWindowState>, String> {
-    window_state::get_most_recent_hidden_window_state(&app)
-}
-
-#[tauri::command]
-async fn list_window_states_in_order(
-    app: tauri::AppHandle,
-) -> Result<Vec<window_state::CachedWindowState>, String> {
-    window_state::list_window_states_in_order(&app)
-}
-
-#[tauri::command]
-async fn upsert_window_state(
-    app: tauri::AppHandle,
-    state: window_state::CachedWindowState,
+    window: WebviewWindow,
+    preferences: window_state::WindowPreferences,
     options: Option<window_state::UpdateWindowStateOptions>,
-) -> Result<(), String> {
-    window_state::upsert_window_state(&app, state, options.unwrap_or_default())
-}
-
-#[tauri::command]
-async fn set_window_visibility(
-    app: tauri::AppHandle,
-    window_id: String,
-    visibility: window_state::WindowVisibility,
-    options: Option<window_state::UpdateWindowStateOptions>,
-) -> Result<(), String> {
-    window_state::set_window_visibility(&app, &window_id, visibility, options.unwrap_or_default())
-}
-
-#[tauri::command]
-async fn remove_window_state(app: tauri::AppHandle, window_id: String) -> Result<(), String> {
-    window_state::remove_window_state(&app, &window_id)
+) -> Result<(), document::DocumentError> {
+    let label = window.label().to_string();
+    let document = app
+        .state::<document::DocumentService>()
+        .for_window(&label)?;
+    document::DocumentService::run(document, move |document| {
+        document.check(&label)?;
+        let path = normalize_windows_cli_note_path(document.path().to_path_buf())
+            .to_string_lossy()
+            .into_owned();
+        let mut state = capture_note_window_state(
+            &window,
+            &extract_note_id_from_path(&path),
+            &path,
+            preferences.read_only,
+            clamp_note_opacity(Some(preferences.opacity)),
+            clamp_note_scroll_top(Some(preferences.scroll_top)),
+        )?;
+        if let Some(visibility) = preferences.visibility {
+            state.visibility = visibility;
+        }
+        window_state::upsert_window_state(&app, state, options.unwrap_or_default())
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -961,10 +818,113 @@ async fn show_settings_window(
 #[tauri::command]
 async fn open_note_window(
     app: tauri::AppHandle,
-    note_id: String,
     options: Option<OpenNoteWindowOptions>,
-) -> Result<window_state::CachedWindowState, String> {
-    window::open_note_window(app, note_id, options)
+) -> Result<window_state::CachedWindowState, document::DocumentError> {
+    app.state::<document::DocumentService>()
+        .open(app.clone(), options.unwrap_or_default(), false)
+        .await
+}
+
+#[tauri::command]
+async fn create_note_window(
+    app: tauri::AppHandle,
+    options: Option<OpenNoteWindowOptions>,
+) -> Result<window_state::CachedWindowState, document::DocumentError> {
+    let directory = resolve_managed_notes_directory(&app).ok_or_else(|| {
+        document::DocumentError::from(String::from("Could not locate the notes directory."))
+    })?;
+    let mut options = options.unwrap_or_default();
+    options.note_path = Some(
+        directory
+            .join(format!("{}.md", Uuid::new_v4()))
+            .to_string_lossy()
+            .into_owned(),
+    );
+    app.state::<document::DocumentService>()
+        .open(app.clone(), options, true)
+        .await
+}
+
+#[tauri::command]
+async fn read_note(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+) -> Result<document::FileSnapshot, document::DocumentError> {
+    let label = window.label().to_string();
+    let document = app
+        .state::<document::DocumentService>()
+        .for_window(&label)?;
+    document::DocumentService::run(document, move |document| {
+        app.state::<document::DocumentService>()
+            .lifecycle
+            .ensure_running()?;
+        document.load(&label)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn complete_note_exit(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+    attempt: String,
+    ready: bool,
+) -> bool {
+    let service = app.state::<document::DocumentService>();
+    let accepted = service
+        .lifecycle
+        .acknowledge(window.label(), Some(&attempt), ready);
+    if accepted
+        && !ready
+        && let Err(error) = window.show().and_then(|_| window.set_focus())
+    {
+        error!("show_unsaved_note_failed error={error}");
+    }
+    service.lifecycle.wait_finished(&attempt).await
+}
+
+#[tauri::command]
+async fn read_note_file(
+    app: tauri::AppHandle,
+    note_path: String,
+) -> Result<document::FileSnapshot, document::DocumentError> {
+    let document = app
+        .state::<document::DocumentService>()
+        .for_path(note_path)
+        .await?;
+    document::DocumentService::run(document, |document| document.read()).await
+}
+
+#[tauri::command]
+async fn save_note(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+    content: String,
+    version: String,
+) -> Result<String, document::DocumentError> {
+    let label = window.label().to_string();
+    let document = app
+        .state::<document::DocumentService>()
+        .for_window(&label)?;
+    document::DocumentService::run(document, move |document| {
+        document.save(&label, &content, &version)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn end_note(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+    kind: document::EndKind,
+    save: Option<document::FileSnapshot>,
+) -> Result<document::EndResult, document::DocumentError> {
+    let mut result = app
+        .state::<document::DocumentService>()
+        .end_session(window.label().to_string(), kind, save)
+        .await?;
+    document::finish_window(&app, &mut result);
+    Ok(result)
 }
 
 #[tauri::command]
@@ -1081,7 +1041,6 @@ async fn sync_native_locale(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
-        .manage(window_state::WindowStateStore::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -1098,19 +1057,17 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             note_history::list_note_history,
-            note_history::record_note_history,
             note_history::delete_history_notes,
             note_history::remove_history_records,
-            load_window_state_cache,
-            get_window_state,
-            get_window_state_by_note_path,
-            get_most_recent_hidden_window_state,
-            list_window_states_in_order,
-            upsert_window_state,
-            set_window_visibility,
-            remove_window_state,
+            save_note_preferences,
             show_settings_window,
             open_note_window,
+            create_note_window,
+            read_note,
+            read_note_file,
+            save_note,
+            end_note,
+            complete_note_exit,
             bring_note_windows_back_on_screen,
             get_runtime_platform,
             export_diagnostic_report,
@@ -1148,8 +1105,8 @@ pub fn run() {
                 ])
                 .build();
             handle.plugin(log_plugin)?;
-            handle.manage(note_history::NoteHistoryStore::new(
-                handle.path().app_data_dir()?.join("history.json"),
+            handle.manage(document::DocumentService::new(
+                handle.path().app_data_dir()?,
             ));
             let system_environment = collect_system_environment(&handle);
             info!("system_environment {}", system_environment);
@@ -1163,29 +1120,47 @@ pub fn run() {
                 error!("sync_windows_shell_locale_failed error={err}");
             }
             shortcut::setup_shortcuts(&handle)?;
-            let skip_taskbar = load_hide_note_windows_from_taskbar(&handle);
-            let restored_count = restore_cached_note_windows(&handle, skip_taskbar);
-            let _ = window::bring_note_windows_back_on_screen(&handle);
-            let startup_args = std::env::args().collect::<Vec<_>>();
-            let startup_cwd = std::env::current_dir()
-                .ok()
-                .map(|path| path.to_string_lossy().into_owned());
-            let startup_requests =
-                parse_cli_open_note_requests(&startup_args, startup_cwd.as_deref());
-            if startup_requests.is_empty() {
-                if restored_count == 0
-                    && let Some(note_path) = create_startup_note_file(&handle)
-                {
-                    open_cli_note_windows(&handle, vec![CliOpenNoteRequest { note_path }]);
-                }
-            } else {
-                open_cli_note_windows(&handle, startup_requests);
-            }
             window::open_startup_update_window(&handle);
-
-            info!("app_ready");
+            tauri::async_runtime::spawn(async move {
+                let skip_taskbar = load_hide_note_windows_from_taskbar(&handle);
+                let restored_count = match restore_cached_note_windows(&handle, skip_taskbar).await
+                {
+                    Ok(count) => count,
+                    Err(error) => {
+                        error!("startup_restore_failed error={error}");
+                        return;
+                    }
+                };
+                let startup_args = std::env::args().collect::<Vec<_>>();
+                let startup_cwd = std::env::current_dir()
+                    .ok()
+                    .map(|path| path.to_string_lossy().into_owned());
+                let requests = parse_cli_open_note_requests(&startup_args, startup_cwd.as_deref());
+                if requests.is_empty() && restored_count == 0 {
+                    open_new_note_window(&handle);
+                } else {
+                    open_cli_requests(&handle, requests).await;
+                }
+                window::bring_note_windows_back_on_screen(&handle);
+                info!("app_ready");
+            });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+                if app
+                    .state::<document::DocumentService>()
+                    .lifecycle
+                    .confirmed(code)
+                {
+                    return;
+                }
+                api.prevent_exit();
+                if let Some(code) = code {
+                    lifecycle::request_exit(app, code);
+                }
+            }
+        });
 }
