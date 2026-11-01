@@ -16,7 +16,6 @@ pub fn replace_file(path: &Path, content: &[u8]) -> io::Result<()> {
         .parent()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "File path has no parent"))?;
     fs::create_dir_all(parent)?;
-    // 使用普通文件属性，保留 Windows 文件替换行为。
     let mut file = Builder::new().make_in(parent, |path| {
         let mut options = fs::OpenOptions::new();
         options.read(true).write(true).create_new(true);

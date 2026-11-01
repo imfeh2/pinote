@@ -684,7 +684,6 @@ mod tests {
         let phase = Arc::new(AtomicUsize::new(0));
         let observed = Arc::new(AtomicUsize::new(usize::MAX));
         let result = observed.clone();
-        // MockRuntime 在最后一个窗口销毁时通知退出，用队列顺序检验释放范围。
         app.run(move |app, event| match event {
             tauri::RunEvent::Ready => {
                 note.destroy().unwrap();

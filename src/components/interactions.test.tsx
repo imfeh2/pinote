@@ -262,7 +262,6 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
   expect(itemButton.getAttribute("aria-describedby")).toBe(preview?.id);
   await key(itemButton, "Escape");
   expect(document.querySelector("aside")).toBeNull();
-  // A different item avoids the completed read cache.
   const next = { ...item, notePath: "/notes/b.md", noteId: "b" };
   let resolveRead: (value: string) => void = () => {};
   mocks.readTextFile.mockImplementation(

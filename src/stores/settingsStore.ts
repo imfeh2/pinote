@@ -75,7 +75,6 @@ export function updateSettingsStore(patch: SettingsPatch) {
       throw error;
     }
   });
-  // 失败返回给调用方，后续独立修改仍能进入队列。
   updatePromise = operation.catch(() => {});
   return operation;
 }

@@ -7,7 +7,6 @@ fn main() {
             .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest());
         let manifest = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap())
             .join("windows-app-manifest.xml");
-        // 应用与测试程序均需要 Common Controls v6。
         println!("cargo:rerun-if-changed={}", manifest.display());
         println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
         println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());

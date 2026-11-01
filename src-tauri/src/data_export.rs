@@ -44,7 +44,6 @@ fn archive_directory(
             let file = File::open(&path)?;
             let size = file.metadata()?.len();
             zip.start_file(name, options.large_file(size > u32::MAX as u64))?;
-            // 限定读取长度，使持续追加的日志也能完成导出。
             if io::copy(&mut file.take(size), zip)? != size {
                 return Err(io::Error::other(format!(
                     "File changed while exporting: {}",
