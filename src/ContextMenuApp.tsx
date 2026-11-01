@@ -460,7 +460,7 @@ function ContextMenuApp({
             </button>
             <Button
               variant="ghost"
-              className="h-auto justify-start rounded px-2 py-1.5 text-left font-normal text-destructive"
+              className="h-auto justify-start rounded px-2 py-1.5 text-left font-normal text-red-700 [[data-theme=dark]_&]:text-red-400"
               onClick={() => dispatchAction("delete-note")}
             >
               {t("deleteNote")}
