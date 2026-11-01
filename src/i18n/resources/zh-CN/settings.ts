@@ -205,6 +205,14 @@ export default {
     downloading: "正在下载",
     download: "下载",
   },
+  dataExport: {
+    label: "数据",
+    export: "导出数据",
+    exporting: "正在导出…",
+    saved: "已导出，共 {{count}} 个文件。",
+    failed: "无法导出数据，请检查保存位置后重试。",
+    dialogTitle: "导出数据",
+  },
   diagnostics: {
     saved: "已保存，共 {{count}} 个文件。",
     dialog: { title: "保存报告", zipArchive: "Zip 压缩包" },

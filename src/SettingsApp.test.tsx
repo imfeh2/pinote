@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   contextMenu: vi.fn(),
   defaultOpen: vi.fn(),
   taskbar: vi.fn(),
+  dataExport: vi.fn(),
 }));
 vi.mock("@/hooks/useSettings", () => ({
   useSettings: () => ({
@@ -25,6 +26,7 @@ vi.mock("@/hooks/useSettings", () => ({
   }),
 }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({}) }));
+vi.mock("@/lib/dataExport", () => ({ exportAppData: mocks.dataExport }));
 vi.mock("@/lib/logger", () => ({ logError: vi.fn(), logInfo: vi.fn() }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "0.6.3" }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -77,6 +79,7 @@ beforeEach(async () => {
   mocks.contextMenu.mockReset().mockImplementation(async (enabled) => enabled);
   mocks.defaultOpen.mockReset().mockImplementation(async (enabled) => enabled);
   mocks.taskbar.mockReset().mockResolvedValue(undefined);
+  mocks.dataExport.mockReset().mockResolvedValue(null);
   i18n = createInstance();
   await i18n.init({
     lng: "zh-CN",
@@ -200,6 +203,55 @@ test("taskbar behavior changes only after its preference is saved", async () => 
   expect(mocks.taskbar).toHaveBeenCalledWith(false);
   expect(getSwitch("在任务栏中隐藏便签").getAttribute("aria-checked")).toBe(
     "false",
+  );
+});
+
+test("data export handles cancellation, busy state, duplicate clicks, failure and retry", async () => {
+  await selectPage("关于");
+  const button = () => {
+    const result = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("main button"),
+    ).find(
+      (item) =>
+        item.textContent === settingsZh.dataExport.export ||
+        item.textContent === settingsZh.dataExport.exporting,
+    );
+    if (!result) throw new Error("Missing export action");
+    return result;
+  };
+  await act(async () => button().click());
+  expect(container.querySelector('[role="status"]')).toBeNull();
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  let finish!: (value: unknown) => void;
+  mocks.dataExport.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await act(async () => {
+    button().click();
+    button().click();
+  });
+  expect(mocks.dataExport).toHaveBeenCalledTimes(2);
+  expect(button().disabled).toBe(true);
+  await act(async () => finish({ fileCount: 3 }));
+  expect(container.querySelector('[role="status"]')?.textContent).toBe(
+    "已导出，共 3 个文件。",
+  );
+  expect(button().disabled).toBe(false);
+  mocks.dataExport.mockRejectedValueOnce(new Error("disk full"));
+  await act(async () => button().click());
+  expect(container.querySelector('[role="status"]')).toBeNull();
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    settingsZh.dataExport.failed,
+  );
+  expect(button().disabled).toBe(false);
+  mocks.dataExport.mockResolvedValueOnce({ fileCount: 0 });
+  await act(async () => button().click());
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(container.querySelector('[role="status"]')?.textContent).toBe(
+    "已导出，共 0 个文件。",
   );
 });
 

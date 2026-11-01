@@ -1,3 +1,4 @@
+mod data_export;
 mod document;
 mod lifecycle;
 mod locale;
@@ -1068,6 +1069,7 @@ pub fn run() {
             bring_note_windows_back_on_screen,
             get_runtime_platform,
             export_diagnostic_report,
+            data_export::export_app_data,
             get_open_with_pinote_enabled,
             set_open_with_pinote_enabled,
             get_default_markdown_open_enabled,

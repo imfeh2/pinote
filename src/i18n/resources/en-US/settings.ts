@@ -245,6 +245,14 @@ export default {
     downloading: "Downloading",
     download: "Download",
   },
+  dataExport: {
+    label: "Data",
+    export: "Export data",
+    exporting: "Exporting…",
+    saved: "Exported {{count}} files.",
+    failed: "Could not export data. Check the save location and try again.",
+    dialogTitle: "Export data",
+  },
   diagnostics: {
     saved_one: "Saved with {{count}} file.",
     saved_other: "Saved with {{count}} files.",

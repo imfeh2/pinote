@@ -25,6 +25,7 @@ import { UpdateDialog } from "@/components/settings/UpdateDialog";
 import { WindowSection } from "@/components/settings/WindowSection";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
+import { exportAppData } from "@/lib/dataExport";
 import { saveDiagnosticReport } from "@/lib/diagnostics";
 import { logError } from "@/lib/logger";
 import {
@@ -168,6 +169,10 @@ export function SettingsApp() {
   const pendingUpdateCheckVersionRef = useRef<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [aboutError, setAboutError] = useState<string | null>(null);
+  const [dataExportBusy, setDataExportBusy] = useState(false);
+  const dataExportPending = useRef(false);
+  const [dataExportCount, setDataExportCount] = useState<number | null>(null);
+  const [dataExportError, setDataExportError] = useState(false);
   const [diagnosticBusy, setDiagnosticBusy] = useState(false);
   const [diagnosticFileCount, setDiagnosticFileCount] = useState<number | null>(
     null,
@@ -461,6 +466,24 @@ export function SettingsApp() {
       setAboutError(getErrorMessage(error, t));
     }
   }, [t]);
+
+  const handleExportData = useCallback(async () => {
+    if (dataExportPending.current) return;
+    dataExportPending.current = true;
+    setDataExportBusy(true);
+    setDataExportCount(null);
+    setDataExportError(false);
+    try {
+      const result = await exportAppData();
+      if (result) setDataExportCount(result.fileCount);
+    } catch (error) {
+      setDataExportError(true);
+      logError("settings", "data_export_failed", error);
+    } finally {
+      dataExportPending.current = false;
+      setDataExportBusy(false);
+    }
+  }, []);
 
   const handleSaveDiagnosticReport = useCallback(async () => {
     setDiagnosticBusy(true);
@@ -842,6 +865,14 @@ export function SettingsApp() {
         settings={settings}
         updateError={updateError}
         aboutError={aboutError}
+        dataExportBusy={dataExportBusy}
+        dataExportMessage={
+          dataExportCount === null
+            ? null
+            : t("dataExport.saved", { count: dataExportCount })
+        }
+        dataExportError={dataExportError ? t("dataExport.failed") : null}
+        onExportData={handleExportData}
         diagnosticBusy={diagnosticBusy}
         diagnosticMessage={
           diagnosticFileCount === null

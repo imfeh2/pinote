@@ -1,5 +1,6 @@
 import { Download, Github } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/Button";
 import type { UpdateSnapshot } from "@/lib/updater";
 import { cn } from "@/lib/utils";
 import type { Settings } from "@/stores/settings";
@@ -16,6 +17,10 @@ interface AboutSectionProps {
   settings: Settings;
   updateError: string | null;
   aboutError: string | null;
+  dataExportBusy: boolean;
+  dataExportMessage: string | null;
+  dataExportError: string | null;
+  onExportData: () => Promise<void>;
   diagnosticBusy: boolean;
   diagnosticMessage: string | null;
   diagnosticError: string | null;
@@ -40,6 +45,10 @@ export function AboutSection({
   settings,
   updateError,
   aboutError,
+  dataExportBusy,
+  dataExportMessage,
+  dataExportError,
+  onExportData,
   diagnosticBusy,
   diagnosticMessage,
   diagnosticError,
@@ -176,6 +185,32 @@ export function AboutSection({
 
         {updateError && (
           <div className="text-xs text-destructive">{updateError}</div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
+        <div className="text-xs font-medium text-muted-foreground">
+          {t("dataExport.label")}
+        </div>
+        <Button
+          disabled={dataExportBusy}
+          onClick={() => void onExportData()}
+          className="inline-flex items-center gap-2 self-start bg-background"
+        >
+          <Download size={14} aria-hidden="true" />
+          <span>
+            {t(dataExportBusy ? "dataExport.exporting" : "dataExport.export")}
+          </span>
+        </Button>
+        {dataExportMessage && (
+          <div role="status" className="text-xs text-muted-foreground">
+            {dataExportMessage}
+          </div>
+        )}
+        {dataExportError && (
+          <div role="alert" className="text-xs text-destructive">
+            {dataExportError}
+          </div>
         )}
       </div>
 
