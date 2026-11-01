@@ -65,9 +65,9 @@ export function AboutSection({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
-        <div className="text-xs font-medium text-muted-foreground">
+        <h2 className="text-xs font-medium text-muted-foreground">
           {t("about.application.label")}
-        </div>
+        </h2>
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
             {t("about.application.name")}
@@ -189,19 +189,21 @@ export function AboutSection({
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
-        <div className="text-xs font-medium text-muted-foreground">
-          {t("dataExport.label")}
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium text-muted-foreground">
+            {t("dataExport.label")}
+          </h2>
+          <Button
+            disabled={dataExportBusy}
+            onClick={() => void onExportData()}
+            className="inline-flex items-center gap-2 bg-background"
+          >
+            <Download size={14} aria-hidden="true" />
+            <span>
+              {t(dataExportBusy ? "dataExport.exporting" : "dataExport.export")}
+            </span>
+          </Button>
         </div>
-        <Button
-          disabled={dataExportBusy}
-          onClick={() => void onExportData()}
-          className="inline-flex items-center gap-2 self-start bg-background"
-        >
-          <Download size={14} aria-hidden="true" />
-          <span>
-            {t(dataExportBusy ? "dataExport.exporting" : "dataExport.export")}
-          </span>
-        </Button>
         {dataExportMessage && (
           <div role="status" className="text-xs text-muted-foreground">
             {dataExportMessage}
@@ -215,30 +217,22 @@ export function AboutSection({
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
-        <div className="text-xs font-medium text-muted-foreground">
-          {t("about.troubleshooting.label")}
-        </div>
-        <button
-          type="button"
-          disabled={diagnosticBusy}
-          onClick={() => {
-            void onSaveDiagnosticReport();
-          }}
-          className={cn(
-            "inline-flex items-center gap-2 self-start rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
-            "border-border bg-background text-foreground hover:bg-accent",
-            diagnosticBusy && "cursor-not-allowed opacity-60",
-          )}
-        >
-          <Download size={14} />
-          <span>
-            {diagnosticBusy
-              ? t("about.troubleshooting.saving")
-              : t("about.troubleshooting.save")}
-          </span>
-        </button>
-        <div className="text-xs text-muted-foreground">
-          {t("about.troubleshooting.description")}
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium text-muted-foreground">
+            {t("about.troubleshooting.label")}
+          </h2>
+          <Button
+            disabled={diagnosticBusy}
+            onClick={() => void onSaveDiagnosticReport()}
+            className="inline-flex items-center gap-2 bg-background"
+          >
+            <Download size={14} aria-hidden="true" />
+            <span>
+              {diagnosticBusy
+                ? t("about.troubleshooting.saving")
+                : t("about.troubleshooting.save")}
+            </span>
+          </Button>
         </div>
         {diagnosticMessage && (
           <div className="text-xs text-muted-foreground">
@@ -251,20 +245,19 @@ export function AboutSection({
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
-        <div className="text-xs font-medium text-muted-foreground">
-          {t("about.project")}
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium text-muted-foreground">
+            {t("about.project")}
+          </h2>
+          <Button
+            onClick={() => void onOpenRepository()}
+            className="inline-flex items-center gap-2 bg-background"
+          >
+            <Github size={14} aria-hidden="true" />
+            <span>Pinote</span>
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            void onOpenRepository();
-          }}
-          className="inline-flex items-center gap-2 self-start rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          <Github size={14} />
-          <span>Pinote</span>
-        </button>
-        <div className="truncate text-[11px] text-muted-foreground">
+        <div className="break-all text-[11px] text-muted-foreground">
           {repositoryUrl}
         </div>
       </div>

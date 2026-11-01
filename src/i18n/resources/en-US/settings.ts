@@ -216,8 +216,6 @@ export default {
     },
     troubleshooting: {
       label: "Troubleshooting",
-      description:
-        "The report may include recent file paths and app error details.",
       save: "Save report",
       saving: "Saving...",
     },

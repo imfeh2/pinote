@@ -177,7 +177,6 @@ export default {
     },
     troubleshooting: {
       label: "问题排查",
-      description: "报告可能包含最近使用的文件路径和应用错误详情。",
       save: "保存报告",
       saving: "正在保存…",
     },

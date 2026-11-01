@@ -113,6 +113,30 @@ async function selectPage(label: string) {
   expect(button.getAttribute("aria-current")).toBe("page");
 }
 
+test("about sections retain heading weights and place actions in the same row", async () => {
+  await selectPage("关于");
+  const headings = Array.from(container.querySelectorAll("main h2"));
+  expect(headings.map((heading) => heading.textContent)).toEqual([
+    "应用信息",
+    "数据",
+    "问题排查",
+    "项目",
+  ]);
+  for (const heading of headings) {
+    expect(heading.classList.contains("font-medium")).toBe(true);
+    expect(heading.classList.contains("text-muted-foreground")).toBe(true);
+  }
+  const actions = ["导出数据", "保存报告", "Pinote"];
+  for (const [index, heading] of headings.slice(1).entries()) {
+    const row = heading.parentElement;
+    expect(row?.classList.contains("justify-between")).toBe(true);
+    expect(row?.querySelector("button")?.textContent).toBe(actions[index]);
+  }
+  expect(container.textContent).not.toContain("报告可能包含");
+  expect(container.textContent).toContain("https://github.com/imfeh2/pinote");
+  expect(container.textContent).toContain("检查更新");
+});
+
 test("preferences navigation exposes a persistent confirmation switch and preserves its value on failure", async () => {
   await selectPage("偏好");
   const toggle = () => getSwitch("删除前确认");
