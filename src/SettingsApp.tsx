@@ -763,15 +763,6 @@ export function SettingsApp() {
     ) : activeSection === "window" ? (
       <WindowSection
         settings={settings}
-        defaultNotesDirectory={defaultNotesDirectory}
-        effectiveNotesDirectory={effectiveNotesDirectory}
-        notesDirectoryBusy={notesDirectoryBusy}
-        notesDirectoryError={notesDirectoryError}
-        startupBusy={startupBusy}
-        startupEnabled={startupEnabled}
-        contextMenuEnabled={contextMenuEnabled}
-        defaultOpenEnabled={defaultOpenEnabled}
-        startupError={startupError}
         taskbarBusy={taskbarBusy}
         taskbarError={
           taskbarError === "apply"
@@ -794,22 +785,34 @@ export function SettingsApp() {
               ? t("window.lostNotes.moved", { count: bringNotesBackCount })
               : t("window.lostNotes.allVisible")
         }
+        onTaskbarVisibility={handleTaskbarVisibility}
+        onBringNotesBack={handleBringNotesBack}
+      />
+    ) : activeSection === "preferences" ? (
+      <PreferencesSection
+        settings={settings}
+        defaultNotesDirectory={defaultNotesDirectory}
+        effectiveNotesDirectory={effectiveNotesDirectory}
+        notesDirectoryBusy={notesDirectoryBusy}
+        notesDirectoryError={notesDirectoryError}
+        startupBusy={startupBusy}
+        startupEnabled={startupEnabled}
+        startupError={startupError}
+        contextMenuEnabled={contextMenuEnabled}
         contextMenuBusy={contextMenuBusy}
         contextMenuError={contextMenuError}
+        defaultOpenEnabled={defaultOpenEnabled}
         defaultOpenBusy={defaultOpenBusy}
         defaultOpenError={defaultOpenError}
+        saveSettings={saveSettings}
         updateSettings={updateSettings}
         setNotesDirectoryError={setNotesDirectoryError}
         onChooseNotesDirectory={handleChooseNotesDirectory}
         onOpenNotesDirectory={handleOpenNotesDirectory}
         onLaunchAtStartup={handleLaunchAtStartup}
-        onTaskbarVisibility={handleTaskbarVisibility}
-        onBringNotesBack={handleBringNotesBack}
         onContextMenuIntegration={handleContextMenuIntegration}
         onDefaultOpenIntegration={handleDefaultOpenIntegration}
       />
-    ) : activeSection === "preferences" ? (
-      <PreferencesSection settings={settings} updateSettings={saveSettings} />
     ) : activeSection === "history" ? (
       <HistorySection
         historyQuery={historyRequest.query}

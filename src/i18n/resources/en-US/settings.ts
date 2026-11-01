@@ -14,11 +14,11 @@ export default {
     },
     window: {
       label: "Window",
-      description: "Window and startup behavior.",
+      description: "Window visibility and position.",
     },
     preferences: {
       label: "Preferences",
-      description: "Note preferences.",
+      description: "App behavior and system integration.",
     },
     shortcuts: {
       label: "Shortcuts",

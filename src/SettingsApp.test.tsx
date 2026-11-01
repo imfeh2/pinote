@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   defaultOpen: vi.fn(),
   taskbar: vi.fn(),
   dataExport: vi.fn(),
+  chooseDirectory: vi.fn(),
+  openPath: vi.fn(),
+  bringNotesBack: vi.fn(),
 }));
 vi.mock("@/hooks/useSettings", () => ({
   useSettings: () => ({
@@ -27,6 +30,11 @@ vi.mock("@/hooks/useSettings", () => ({
 }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({}) }));
 vi.mock("@/lib/dataExport", () => ({ exportAppData: mocks.dataExport }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mocks.chooseDirectory }));
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openPath: mocks.openPath,
+  openUrl: vi.fn(),
+}));
 vi.mock("@/lib/logger", () => ({ logError: vi.fn(), logInfo: vi.fn() }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "0.6.3" }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -47,6 +55,7 @@ vi.mock("@/lib/windowApi", () => ({
   setOpenWithPinoteEnabled: mocks.contextMenu,
   setDefaultMarkdownOpenEnabled: mocks.defaultOpen,
   setNoteWindowsSkipTaskbar: mocks.taskbar,
+  bringNoteWindowsBackOnScreen: mocks.bringNotesBack,
   setGlobalShortcuts: async () => ({
     newNote: true,
     restoreWindow: true,
@@ -80,6 +89,9 @@ beforeEach(async () => {
   mocks.defaultOpen.mockReset().mockImplementation(async (enabled) => enabled);
   mocks.taskbar.mockReset().mockResolvedValue(undefined);
   mocks.dataExport.mockReset().mockResolvedValue(null);
+  mocks.chooseDirectory.mockReset().mockResolvedValue(null);
+  mocks.openPath.mockReset().mockResolvedValue(undefined);
+  mocks.bringNotesBack.mockReset().mockResolvedValue(2);
   i18n = createInstance();
   await i18n.init({
     lng: "zh-CN",
@@ -176,7 +188,7 @@ test("preferences navigation exposes a persistent confirmation switch and preser
 
 test("system switches reflect native results without depending on settings file writes", async () => {
   mocks.update.mockRejectedValue(new Error("disk full"));
-  await selectPage("窗口");
+  await selectPage("偏好");
   for (const label of [
     "开机时打开 Pinote",
     "添加“使用 Pinote 打开”",
@@ -199,6 +211,101 @@ test("system switches reflect native results without depending on settings file 
     "false",
   );
   expect(container.textContent).toContain(settingsZh.errors.unknown);
+});
+
+test("navigation and settings follow the grouped order", async () => {
+  expect(
+    Array.from(
+      container.querySelectorAll("aside button"),
+      (button) => button.textContent,
+    ),
+  ).toEqual(["外观", "偏好", "窗口", "快捷键", "历史记录", "关于"]);
+  const labels = () =>
+    Array.from(
+      container.querySelectorAll(
+        "main div.text-xs.font-medium.text-muted-foreground",
+      ),
+      (element) => element.textContent,
+    );
+  await selectPage("偏好");
+  expect(labels()).toEqual([
+    settingsZh.window.launchAtStartup,
+    settingsZh.window.notesDirectory.label,
+    settingsZh.preferences.confirmNoteDeletion,
+    settingsZh.window.contextMenuOpacity.label,
+    settingsZh.window.explorerMenu.label,
+    settingsZh.window.defaultOpener.label,
+  ]);
+  await selectPage("窗口");
+  expect(labels()).toEqual([
+    settingsZh.window.taskbar.label,
+    settingsZh.window.lostNotes.label,
+  ]);
+  const restore = Array.from(
+    container.querySelectorAll<HTMLButtonElement>("main button"),
+  ).find((button) => button.textContent === settingsZh.window.lostNotes.action);
+  if (!restore) throw new Error("Missing window recovery action");
+  await act(async () => restore.click());
+  expect(mocks.bringNotesBack).toHaveBeenCalledOnce();
+  expect(container.textContent).toContain("已移回 2 个便签。");
+});
+
+test("preferences keeps directory selection, busy state, opening and save errors", async () => {
+  await selectPage("偏好");
+  const choose = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="选择文件夹"]',
+  );
+  const open = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="打开文件夹"]',
+  );
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="便签文件夹"]',
+  );
+  if (!choose || !open || !input) throw new Error("Missing directory controls");
+  expect(input.placeholder).toBe("/notes");
+  await act(async () => choose.click());
+  expect(mocks.update).not.toHaveBeenCalled();
+  let finish!: (path: string) => void;
+  mocks.chooseDirectory.mockImplementationOnce(
+    () =>
+      new Promise<string>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await act(async () => choose.click());
+  expect(input.disabled).toBe(true);
+  expect(open.disabled).toBe(true);
+  expect(choose.disabled).toBe(true);
+  mocks.update.mockImplementationOnce(async (patch) => {
+    mocks.settings = { ...mocks.settings, ...patch };
+  });
+  await act(async () => finish("/custom-notes"));
+  await act(async () => render());
+  expect(mocks.update).toHaveBeenCalledWith({
+    newNoteDirectory: "/custom-notes",
+  });
+  expect(input.value).toBe("/custom-notes");
+  expect(input.disabled).toBe(false);
+  await act(async () => open.click());
+  expect(mocks.openPath).toHaveBeenCalledWith("/custom-notes");
+  mocks.chooseDirectory.mockResolvedValueOnce("/another-directory");
+  mocks.update.mockRejectedValueOnce(new Error("disk full"));
+  await act(async () => choose.click());
+  expect(input.value).toBe("/custom-notes");
+  expect(container.textContent).toContain(settingsZh.errors.unknown);
+});
+
+test("preferences keeps menu opacity persistence and failure feedback", async () => {
+  await selectPage("偏好");
+  const toggle = getSwitch(settingsZh.window.contextMenuOpacity.label);
+  const current = mocks.settings.contextMenuFollowNoteOpacity;
+  mocks.update.mockRejectedValueOnce(new Error("disk full"));
+  await act(async () => toggle.click());
+  expect(mocks.update).toHaveBeenCalledWith({
+    contextMenuFollowNoteOpacity: !current,
+  });
+  expect(toggle.getAttribute("aria-checked")).toBe(String(current));
+  expect(container.textContent).toContain(settingsZh.errors.saveSettings);
 });
 
 test("taskbar behavior changes only after its preference is saved", async () => {

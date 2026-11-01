@@ -9,8 +9,8 @@ export default {
   },
   sections: {
     appearance: { label: "外观", description: "语言、主题和视觉样式。" },
-    window: { label: "窗口", description: "窗口与启动行为。" },
-    preferences: { label: "偏好", description: "便签偏好设置。" },
+    window: { label: "窗口", description: "窗口显示与位置。" },
+    preferences: { label: "偏好", description: "应用行为与系统集成。" },
     shortcuts: { label: "快捷键", description: "键盘快捷键与鼠标操作。" },
     history: { label: "历史记录", description: "查找并重新打开便签。" },
     about: { label: "关于", description: "版本、更新与相关链接。" },
