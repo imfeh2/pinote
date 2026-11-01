@@ -633,7 +633,7 @@ function App({
           {dialog === "delete" && state.phase !== "ended" ? (
             <label
               htmlFor="skip-deletion-confirmation"
-              className="flex shrink-0 cursor-pointer items-center gap-2 text-xs"
+              className="flex shrink-0 cursor-pointer items-center gap-2 text-xs has-disabled:cursor-not-allowed"
             >
               <Checkbox
                 id="skip-deletion-confirmation"

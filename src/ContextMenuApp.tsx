@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 
 const MENU_EDGE_GAP = 8;
 const MENU_MAX_WIDTH = 360;
+const MENU_ACTION_CLASS_NAME =
+  "flex h-auto items-center justify-start whitespace-nowrap rounded border-0 px-2 py-1.5 text-left font-normal text-foreground transition-colors hover:text-accent-foreground";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -391,76 +393,65 @@ function ContextMenuApp({
           </button>
           <div className="my-1 h-px bg-border" />
           <div ref={actionsRef} className="inline-flex w-max flex-col">
-            <button
-              type="button"
-              onClick={() => {
-                dispatchAction("new-note");
-              }}
-              className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            <Button
+              variant="ghost"
+              onClick={() => dispatchAction("new-note")}
+              className={MENU_ACTION_CLASS_NAME}
             >
               {t("newNote")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                dispatchAction("open-settings");
-              }}
-              className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => dispatchAction("open-settings")}
+              className={MENU_ACTION_CLASS_NAME}
             >
               {t("openSettings")}
-            </button>
+            </Button>
             {!settings.hideNoteWindowsFromTaskbar && (
-              <button
-                type="button"
-                onClick={() => {
-                  dispatchAction("minimize-window");
-                }}
-                className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              <Button
+                variant="ghost"
+                onClick={() => dispatchAction("minimize-window")}
+                className={MENU_ACTION_CLASS_NAME}
               >
                 {t("minimizeWindow")}
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                dispatchAction("toggle-maximize");
-              }}
-              className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            <Button
+              variant="ghost"
+              onClick={() => dispatchAction("toggle-maximize")}
+              className={MENU_ACTION_CLASS_NAME}
             >
               {context.maximized ? t("restoreWindow") : t("maximizeWindow")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                dispatchAction("toggle-read-only");
-              }}
-              className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => dispatchAction("toggle-read-only")}
+              className={MENU_ACTION_CLASS_NAME}
             >
               {context.noteReadOnly
                 ? t("disableReadOnly")
                 : t("enableReadOnly")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                dispatchAction("hide-window");
-              }}
-              className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              {t("hideWindow")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                dispatchAction("close-window");
-              }}
-              className="flex items-center whitespace-nowrap rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              {t("closeWindow")}
-            </button>
+            </Button>
             <Button
               variant="ghost"
-              className="h-auto justify-start rounded px-2 py-1.5 text-left font-normal text-red-700 [[data-theme=dark]_&]:text-red-400"
+              onClick={() => dispatchAction("hide-window")}
+              className={MENU_ACTION_CLASS_NAME}
+            >
+              {t("hideWindow")}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => dispatchAction("close-window")}
+              className={MENU_ACTION_CLASS_NAME}
+            >
+              {t("closeWindow")}
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                MENU_ACTION_CLASS_NAME,
+                "text-red-700 hover:text-red-700 [[data-theme=dark]_&]:text-red-400 [[data-theme=dark]_&]:hover:text-red-400",
+              )}
               onClick={() => dispatchAction("delete-note")}
             >
               {t("deleteNote")}

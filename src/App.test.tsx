@@ -195,6 +195,30 @@ function confirmationCheckbox() {
   return checkbox;
 }
 
+test("confirmation checkbox and label share a pointer target without deleting", async () => {
+  await withNote(async (end) => {
+    await act(async () => mocks.requestDelete?.());
+    const checkbox = confirmationCheckbox();
+    const label = checkbox.closest("label");
+    if (!label) throw new Error("Missing confirmation label");
+    expect(label.htmlFor).toBe(checkbox.id);
+    expect(label.classList.contains("cursor-pointer")).toBe(true);
+    expect(checkbox.classList.contains("cursor-pointer")).toBe(true);
+    expect(checkbox.classList.contains("disabled:cursor-not-allowed")).toBe(
+      true,
+    );
+    expect(label.classList.contains("has-disabled:cursor-not-allowed")).toBe(
+      true,
+    );
+    await act(async () => label.click());
+    expect(checkbox.getAttribute("aria-checked")).toBe("true");
+    await act(async () => checkbox.click());
+    expect(checkbox.getAttribute("aria-checked")).toBe("false");
+    expect(end).not.toHaveBeenCalled();
+    expect(mocks.updateSettings).not.toHaveBeenCalled();
+  });
+});
+
 test("cancel does not save the choice, and a new confirmation starts unchecked", async () => {
   await withNote(async (end) => {
     await act(async () => {

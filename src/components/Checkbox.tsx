@@ -13,7 +13,7 @@ export function Checkbox({
       {...props}
       checked={checked}
       className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-md text-primary outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40",
+        "flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-primary outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40",
         className,
       )}
     >

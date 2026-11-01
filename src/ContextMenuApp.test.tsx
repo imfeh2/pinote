@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   factor: 1,
   workHeight: 1080,
   contentHeight: 240,
+  hideTaskbar: true,
+  emitAction: vi.fn(async () => {}),
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -31,7 +33,9 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 vi.mock("@/hooks/useSettings", () => ({
-  useSettings: () => ({ settings: { hideNoteWindowsFromTaskbar: true } }),
+  useSettings: () => ({
+    settings: { hideNoteWindowsFromTaskbar: mocks.hideTaskbar },
+  }),
 }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => {} }));
 vi.mock("react-i18next", () => ({
@@ -39,7 +43,7 @@ vi.mock("react-i18next", () => ({
 }));
 vi.mock("@/lib/contextMenuApi", () => ({
   listenNoteContextMenuSync: async () => () => {},
-  emitNoteContextMenuAction: async () => {},
+  emitNoteContextMenuAction: mocks.emitAction,
 }));
 vi.mock("@/lib/logger", () => ({ logError: vi.fn() }));
 
@@ -54,6 +58,7 @@ beforeEach(() => {
   mocks.factor = 1;
   mocks.workHeight = 1080;
   mocks.contentHeight = 240;
+  mocks.hideTaskbar = true;
   observers.length = 0;
   vi.stubGlobal(
     "ResizeObserver",
@@ -144,6 +149,45 @@ test.each([
         position.y <= Math.max(8, workHeight - expectedHeight - 8),
     ),
   ).toBe(true);
+});
+
+test("all menu actions share layout and interaction styles while retaining their actions", async () => {
+  mocks.hideTaskbar = false;
+  const panel = await renderMenu();
+  const buttons = Array.from(panel.querySelectorAll("button")).slice(1);
+  const actions = [
+    "new-note",
+    "open-settings",
+    "minimize-window",
+    "toggle-maximize",
+    "toggle-read-only",
+    "hide-window",
+    "close-window",
+    "delete-note",
+  ];
+  const colors = new Set([
+    "text-foreground",
+    "hover:text-accent-foreground",
+    "text-red-700",
+    "hover:text-red-700",
+    "[[data-theme=dark]_&]:text-red-400",
+    "[[data-theme=dark]_&]:hover:text-red-400",
+  ]);
+  const sharedClasses = (button: HTMLButtonElement) =>
+    Array.from(button.classList)
+      .filter((name) => !colors.has(name))
+      .sort();
+  expect(buttons).toHaveLength(actions.length);
+  for (const [index, button] of buttons.entries()) {
+    expect(sharedClasses(button)).toEqual(sharedClasses(buttons[0]));
+    expect(button.classList.contains("border-0")).toBe(true);
+    expect(button.classList.contains("cursor-pointer")).toBe(true);
+    await act(async () => button.click());
+    expect(mocks.emitAction).toHaveBeenLastCalledWith("note", actions[index]);
+  }
+  expect(buttons[buttons.length - 1].classList.contains("text-red-700")).toBe(
+    true,
+  );
 });
 
 test("remeasures changing content height", async () => {
