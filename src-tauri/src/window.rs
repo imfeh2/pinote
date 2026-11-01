@@ -37,6 +37,17 @@ impl ScreenRect {
     }
 }
 
+pub fn destroy_note_context_menu<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    note_window_label: &str,
+) -> tauri::Result<()> {
+    let label = format!("{note_window_label}{NOTE_CONTEXT_MENU_WINDOW_SUFFIX}");
+    if let Some(menu) = app.get_webview_window(&label) {
+        menu.destroy()?;
+    }
+    Ok(())
+}
+
 fn is_note_window_label(label: &str) -> bool {
     label.starts_with(NOTE_WINDOW_PREFIX) && !label.ends_with(NOTE_CONTEXT_MENU_WINDOW_SUFFIX)
 }
@@ -644,4 +655,53 @@ pub fn build_note_window(
         ),
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    #[test]
+    fn destroying_a_note_menu_keeps_other_menus_alive() {
+        let app = tauri::test::mock_app();
+        let note = WebviewWindowBuilder::new(&app, "note-a", Default::default())
+            .build()
+            .unwrap();
+        let menu = WebviewWindowBuilder::new(&app, "note-a-context-menu", Default::default())
+            .visible(false)
+            .build()
+            .unwrap();
+        let other = WebviewWindowBuilder::new(&app, "note-b-context-menu", Default::default())
+            .build()
+            .unwrap();
+        destroy_note_context_menu(app.handle(), "note-without-menu").unwrap();
+        destroy_note_context_menu(app.handle(), "note-a").unwrap();
+
+        let phase = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::new(AtomicUsize::new(usize::MAX));
+        let result = observed.clone();
+        // MockRuntime 在最后一个窗口销毁时通知退出，用队列顺序检验释放范围。
+        app.run(move |app, event| match event {
+            tauri::RunEvent::Ready => {
+                note.destroy().unwrap();
+                let first = phase.clone();
+                app.run_on_main_thread(move || first.store(1, Ordering::SeqCst))
+                    .unwrap();
+                other.destroy().unwrap();
+                let second = phase.clone();
+                app.run_on_main_thread(move || second.store(2, Ordering::SeqCst))
+                    .unwrap();
+                menu.destroy().unwrap();
+            }
+            tauri::RunEvent::ExitRequested { .. } => {
+                observed.store(phase.load(Ordering::SeqCst), Ordering::SeqCst);
+            }
+            _ => {}
+        });
+        assert_eq!(result.load(Ordering::SeqCst), 1);
+    }
 }

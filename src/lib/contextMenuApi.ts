@@ -218,6 +218,7 @@ export async function openNoteContextMenu(options: OpenNoteContextMenuOptions) {
     menuWindow = new WebviewWindow(label, {
       url: buildNoteContextMenuUrl(options, pointer, maximized ?? false),
       title: "Pinote Menu",
+      parent: options.parentWindowLabel,
       width: NOTE_CONTEXT_MENU_WIDTH,
       height: NOTE_CONTEXT_MENU_HEIGHT,
       decorations: false,

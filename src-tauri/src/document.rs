@@ -772,6 +772,9 @@ fn bind_window_events(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
             });
         }
         tauri::WindowEvent::Destroyed => {
+            if let Err(error) = crate::window::destroy_note_context_menu(&app, &label) {
+                log::error!("context_menu_destroy_failed window={label:?} error={error}");
+            }
             app.state::<DocumentService>()
                 .lifecycle
                 .acknowledge(&label, None, true);
