@@ -1,5 +1,7 @@
 import { FolderOpen, FolderSearch, Move } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/Button";
 import { SettingsSwitch } from "@/components/settings/SettingsSwitch";
 import { cn } from "@/lib/utils";
 import type { Settings } from "@/stores/settings";
@@ -12,6 +14,9 @@ interface WindowSectionProps {
   notesDirectoryBusy: boolean;
   notesDirectoryError: string | null;
   startupBusy: boolean;
+  startupEnabled: boolean | null;
+  contextMenuEnabled: boolean | null;
+  defaultOpenEnabled: boolean | null;
   startupError: string | null;
   taskbarBusy: boolean;
   taskbarError: string | null;
@@ -28,6 +33,7 @@ interface WindowSectionProps {
   onOpenNotesDirectory: () => Promise<void>;
   onLaunchAtStartup: () => Promise<void>;
   onTaskbarVisibility: () => Promise<void>;
+  onRetryTaskbarVisibility?: () => Promise<void>;
   onBringNotesBack: () => Promise<void>;
   onContextMenuIntegration: () => Promise<void>;
   onDefaultOpenIntegration: () => Promise<void>;
@@ -40,6 +46,9 @@ export function WindowSection({
   notesDirectoryBusy,
   notesDirectoryError,
   startupBusy,
+  startupEnabled,
+  contextMenuEnabled,
+  defaultOpenEnabled,
   startupError,
   taskbarBusy,
   taskbarError,
@@ -56,11 +65,13 @@ export function WindowSection({
   onOpenNotesDirectory,
   onLaunchAtStartup,
   onTaskbarVisibility,
+  onRetryTaskbarVisibility,
   onBringNotesBack,
   onContextMenuIntegration,
   onDefaultOpenIntegration,
 }: WindowSectionProps) {
   const { t } = useTranslation("settings");
+  const [directoryDraft, setDirectoryDraft] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between rounded-md border border-border bg-background/60 p-3">
@@ -108,8 +119,11 @@ export function WindowSection({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={settings.newNoteDirectory}
+            value={directoryDraft ?? settings.newNoteDirectory}
+            onFocus={() => setDirectoryDraft(settings.newNoteDirectory)}
+            onBlur={() => setDirectoryDraft(null)}
             onChange={(event) => {
+              setDirectoryDraft(event.target.value);
               updateSettings({ newNoteDirectory: event.target.value });
               setNotesDirectoryError(null);
             }}
@@ -166,9 +180,9 @@ export function WindowSection({
           {t("window.launchAtStartup")}
         </div>
         <SettingsSwitch
-          checked={settings.launchAtStartup}
+          checked={startupEnabled === true}
           label={t("window.launchAtStartup")}
-          disabled={startupBusy}
+          disabled={startupBusy || startupEnabled === null}
           onCheckedChange={() => {
             void onLaunchAtStartup();
           }}
@@ -198,9 +212,24 @@ export function WindowSection({
         />
       </div>
 
-      {taskbarError && (
-        <div className="text-xs text-destructive">{taskbarError}</div>
-      )}
+      {taskbarError ? (
+        <div
+          role="alert"
+          className="flex items-center gap-2 text-xs text-destructive"
+        >
+          <span>{taskbarError}</span>
+          {onRetryTaskbarVisibility ? (
+            <Button
+              disabled={taskbarBusy}
+              onClick={() => {
+                void onRetryTaskbarVisibility();
+              }}
+            >
+              {t("common.retry")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between rounded-md border border-border bg-background/60 p-3">
         <div className="flex flex-col gap-1">
@@ -230,9 +259,9 @@ export function WindowSection({
           </div>
         </div>
         <SettingsSwitch
-          checked={settings.openWithPinoteContextMenu}
+          checked={contextMenuEnabled === true}
           label={t("window.explorerMenu.label")}
-          disabled={contextMenuBusy}
+          disabled={contextMenuBusy || contextMenuEnabled === null}
           onCheckedChange={() => {
             void onContextMenuIntegration();
           }}
@@ -253,9 +282,9 @@ export function WindowSection({
           </div>
         </div>
         <SettingsSwitch
-          checked={settings.defaultMarkdownOpenWithPinote}
+          checked={defaultOpenEnabled === true}
           label={t("window.defaultOpener.label")}
-          disabled={defaultOpenBusy}
+          disabled={defaultOpenBusy || defaultOpenEnabled === null}
           onCheckedChange={() => {
             void onDefaultOpenIntegration();
           }}

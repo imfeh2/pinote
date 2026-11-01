@@ -106,6 +106,11 @@ export const sections = [
     descriptionKey: "sections.window.description",
   },
   {
+    id: "preferences",
+    labelKey: "sections.preferences.label",
+    descriptionKey: "sections.preferences.description",
+  },
+  {
     id: "shortcuts",
     labelKey: "sections.shortcuts.label",
     descriptionKey: "sections.shortcuts.description",

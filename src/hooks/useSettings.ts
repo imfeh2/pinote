@@ -37,7 +37,7 @@ export function useSettings() {
   return {
     settings: settings ?? DEFAULT_SETTINGS,
     updateSettings: useCallback((patch: SettingsPatch) => {
-      void updateSettingsStore(patch);
+      return updateSettingsStore(patch);
     }, []),
     ready: settings !== null,
   };

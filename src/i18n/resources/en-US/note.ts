@@ -22,6 +22,11 @@ const note = {
     title: "Delete note?",
     description: "The file will be permanently deleted.",
     confirm: "Delete",
+    dontAskAgain: "Don't ask again",
+    preferencesFailed:
+      "Could not update your preference. The note has not been deleted.",
+    preferencesUnavailable:
+      "Could not read deletion preferences. Please confirm deletion.",
     failed: "The note could not be deleted.",
     cleanupFailed: "The file was deleted, but cleanup failed.",
   },

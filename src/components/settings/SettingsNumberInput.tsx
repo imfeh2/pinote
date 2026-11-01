@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface SettingsNumberInputProps {
   value: number;
@@ -9,7 +9,7 @@ interface SettingsNumberInputProps {
   label: string;
   suffix?: string;
   precision?: number;
-  onValueChange: (value: number) => void;
+  onValueChange: (value: number) => Promise<void> | void;
 }
 
 export function SettingsNumberInput({
@@ -24,25 +24,58 @@ export function SettingsNumberInput({
 }: SettingsNumberInputProps) {
   const formatValue = (nextValue: number) => nextValue.toFixed(precision);
   const [draft, setDraft] = useState(() => formatValue(value));
+  const draftRef = useRef(draft);
+  const savedValue = useRef(value);
+  const pending = useRef<symbol | null>(null);
+
+  const updateDraft = (text: string) => {
+    draftRef.current = text;
+    setDraft(text);
+  };
 
   useEffect(() => {
-    setDraft(value.toFixed(precision));
+    savedValue.current = value;
+    if (pending.current === null) {
+      draftRef.current = value.toFixed(precision);
+      setDraft(draftRef.current);
+    }
   }, [value, precision]);
 
-  const commit = (nextValue: number) => {
+  const commit = async (nextValue: number) => {
     const clamped = Math.min(max, Math.max(min, nextValue));
     const rounded = Number(clamped.toFixed(precision));
-    setDraft(formatValue(rounded));
-    onValueChange(rounded);
+    const request = Symbol();
+    pending.current = request;
+    updateDraft(formatValue(rounded));
+    try {
+      await onValueChange(rounded);
+    } catch {
+      if (
+        pending.current === request &&
+        draftRef.current === formatValue(rounded)
+      )
+        updateDraft(formatValue(savedValue.current));
+    } finally {
+      if (pending.current === request) pending.current = null;
+    }
+  };
+
+  const increment = (direction: number) => {
+    const parsed = Number(draftRef.current);
+    const current =
+      draftRef.current.trim() !== "" && Number.isFinite(parsed)
+        ? parsed
+        : value;
+    void commit(current + direction * step);
   };
 
   const commitDraft = () => {
-    const parsed = Number(draft);
-    if (draft.trim() === "" || !Number.isFinite(parsed)) {
-      setDraft(formatValue(value));
+    const parsed = Number(draftRef.current);
+    if (draftRef.current.trim() === "" || !Number.isFinite(parsed)) {
+      updateDraft(formatValue(value));
       return;
     }
-    commit(parsed);
+    void commit(parsed);
   };
 
   return (
@@ -53,7 +86,7 @@ export function SettingsNumberInput({
           inputMode="decimal"
           aria-label={label}
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => updateDraft(event.target.value)}
           onBlur={commitDraft}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -61,10 +94,10 @@ export function SettingsNumberInput({
               event.currentTarget.blur();
             } else if (event.key === "ArrowUp") {
               event.preventDefault();
-              commit(value + step);
+              increment(1);
             } else if (event.key === "ArrowDown") {
               event.preventDefault();
-              commit(value - step);
+              increment(-1);
             }
           }}
           className="h-full w-full bg-transparent px-2 pr-7 text-right text-xs tabular-nums text-foreground outline-none"
@@ -80,7 +113,7 @@ export function SettingsNumberInput({
           type="button"
           tabIndex={-1}
           aria-label={`${label} +${step}`}
-          onClick={() => commit(value + step)}
+          onClick={() => increment(1)}
           className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <ChevronUp className="h-3 w-3" />
@@ -89,7 +122,7 @@ export function SettingsNumberInput({
           type="button"
           tabIndex={-1}
           aria-label={`${label} -${step}`}
-          onClick={() => commit(value - step)}
+          onClick={() => increment(-1)}
           className="flex min-h-0 flex-1 items-center justify-center border-t border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <ChevronDown className="h-3 w-3" />

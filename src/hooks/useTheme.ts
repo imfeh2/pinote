@@ -1,5 +1,5 @@
 import { setTheme } from "@tauri-apps/api/app";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import { logError, logInfo } from "@/lib/logger";
 
@@ -19,6 +19,7 @@ function subscribeSystemTheme(callback: () => void) {
 
 export function useTheme() {
   const { settings, updateSettings } = useSettings();
+  const pendingTheme = useRef<{ value: ResolvedTheme } | null>(null);
   const systemTheme = useSyncExternalStore(
     subscribeSystemTheme,
     getSystemTheme,
@@ -36,9 +37,17 @@ export function useTheme() {
   }, [resolvedTheme, settings.theme]);
 
   const toggleTheme = useCallback(() => {
-    const next = resolvedTheme === "dark" ? "light" : "dark";
-    updateSettings({ theme: next });
-    logInfo("theme", "toggle_theme", { next });
+    const current = pendingTheme.current?.value ?? resolvedTheme;
+    const request: { value: ResolvedTheme } = {
+      value: current === "dark" ? "light" : "dark",
+    };
+    pendingTheme.current = request;
+    void updateSettings({ theme: request.value })
+      .then(() => logInfo("theme", "toggle_theme", { next: request.value }))
+      .catch((error) => logError("theme", "save_theme_failed", error))
+      .finally(() => {
+        if (pendingTheme.current === request) pendingTheme.current = null;
+      });
   }, [resolvedTheme, updateSettings]);
 
   return { theme: resolvedTheme, toggleTheme };

@@ -100,9 +100,11 @@ export async function setGlobalShortcuts(shortcuts: GlobalShortcutConfig) {
 export async function setNoteWindowsSkipTaskbar(skipTaskbar: boolean) {
   const windows = await WebviewWindow.getAll();
   const targets = windows.filter((window) => isNoteWindowLabel(window.label));
-  await Promise.all(
+  const results = await Promise.allSettled(
     targets.map((window) => window.setSkipTaskbar(skipTaskbar)),
   );
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
 }
 
 export async function bringNoteWindowsBackOnScreen() {

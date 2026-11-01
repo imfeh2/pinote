@@ -1,14 +1,7 @@
-import { logInfo } from "@/lib/logger";
-import {
-  emitSettingsUpdated,
-  listenSettingsUpdated,
-} from "@/lib/settingsEvents";
-import {
-  DEFAULT_SETTINGS,
-  loadSettings,
-  type Settings,
-  saveSettings,
-} from "@/stores/settings";
+import { invoke } from "@tauri-apps/api/core";
+import { logError, logInfo } from "@/lib/logger";
+import { listenSettingsUpdated } from "@/lib/settingsEvents";
+import type { Settings, SettingsSnapshot } from "@/stores/settings";
 
 export type SettingsPatch = Partial<Omit<Settings, "shortcuts">> & {
   shortcuts?: Partial<Settings["shortcuts"]>;
@@ -16,55 +9,32 @@ export type SettingsPatch = Partial<Omit<Settings, "shortcuts">> & {
 
 type SettingsListener = () => void;
 
-let settingsSnapshot: Settings | null = null;
+let snapshot: SettingsSnapshot | null = null;
 let loadPromise: Promise<void> | null = null;
-let syncPromise: Promise<void> | null = null;
-let updatePromise = Promise.resolve();
+let updatePromise: Promise<void> = Promise.resolve();
 const listeners = new Set<SettingsListener>();
 
-function notifySettingsListeners() {
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function setSettingsSnapshot(next: Settings) {
-  settingsSnapshot = next;
-  notifySettingsListeners();
-}
-
-function mergeSettings(current: Settings, patch: SettingsPatch): Settings {
-  return {
-    ...current,
-    ...patch,
-    shortcuts: {
-      ...current.shortcuts,
-      ...patch.shortcuts,
-    },
-  };
-}
-
-function ensureSettingsSync() {
-  if (syncPromise) return syncPromise;
-  syncPromise = listenSettingsUpdated((next) => {
-    setSettingsSnapshot(next);
-  })
-    .then(() => {})
-    .catch(() => {
-      syncPromise = null;
-    });
-  return syncPromise;
+function applySnapshot(next: SettingsSnapshot) {
+  if (snapshot && next.revision <= snapshot.revision) return snapshot;
+  snapshot = next;
+  for (const listener of listeners) listener();
+  return snapshot;
 }
 
 export function ensureSettingsStoreReady() {
   if (!loadPromise) {
-    loadPromise = Promise.all([loadSettings(), ensureSettingsSync()])
-      .then(([settings]) => {
-        if (!settingsSnapshot) setSettingsSnapshot(settings);
-      })
-      .catch(() => {
-        if (!settingsSnapshot) setSettingsSnapshot({ ...DEFAULT_SETTINGS });
-      });
+    loadPromise = (async () => {
+      const unlisten = await listenSettingsUpdated(applySnapshot);
+      try {
+        await refreshSettingsStore();
+      } catch (error) {
+        unlisten();
+        throw error;
+      }
+    })().catch((error) => {
+      loadPromise = null;
+      throw error;
+    });
   }
   return loadPromise;
 }
@@ -77,21 +47,35 @@ export function subscribeSettingsStore(listener: SettingsListener) {
 }
 
 export function getSettingsSnapshot() {
-  return settingsSnapshot;
+  return snapshot?.settings ?? null;
 }
 
-export async function updateSettingsStore(patch: SettingsPatch) {
-  const current = settingsSnapshot;
-  if (!current) return;
-  const next = mergeSettings(current, patch);
-  if (JSON.stringify(current) === JSON.stringify(next)) return;
-  setSettingsSnapshot(next);
-  logInfo("settings", "settings_updated", { patch });
-  updatePromise = updatePromise
-    .catch(() => {})
-    .then(async () => {
-      await saveSettings(next);
-      await emitSettingsUpdated(next);
-    });
-  await updatePromise;
+export async function refreshSettingsStore() {
+  return applySnapshot(await invoke<SettingsSnapshot>("get_settings")).settings;
+}
+
+export function updateSettingsStore(patch: SettingsPatch) {
+  const operation = updatePromise.then(async () => {
+    await ensureSettingsStoreReady();
+    try {
+      applySnapshot(
+        await invoke<SettingsSnapshot>("update_settings", { patch }),
+      );
+      logInfo("settings", "settings_updated", { patch });
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "snapshot" in error &&
+        error.snapshot
+      ) {
+        applySnapshot(error.snapshot as SettingsSnapshot);
+      }
+      logError("settings", "save_failed", error);
+      throw error;
+    }
+  });
+  // 失败返回给调用方，后续独立修改仍能进入队列。
+  updatePromise = operation.catch(() => {});
+  return operation;
 }

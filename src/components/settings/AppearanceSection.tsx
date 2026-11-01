@@ -22,7 +22,7 @@ const languageOptions: Array<{ value: LanguagePreference; labelKey: string }> =
 interface AppearanceSectionProps {
   settings: Settings;
   runtimePlatform: RuntimePlatform;
-  updateSettings: (patch: SettingsPatch) => void;
+  updateSettings: (patch: SettingsPatch) => Promise<void>;
 }
 
 export function AppearanceSection({

@@ -5,6 +5,7 @@ import {
   Keyboard,
   type LucideIcon,
   Palette,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { type SettingsSection, sections } from "@/components/settings/shared";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 const sectionIcons: Record<SettingsSection, LucideIcon> = {
   appearance: Palette,
   window: AppWindow,
+  preferences: SlidersHorizontal,
   shortcuts: Keyboard,
   history: History,
   about: Info,

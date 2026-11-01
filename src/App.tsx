@@ -11,6 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@/components/AlertDialog";
 import { Button } from "@/components/Button";
+import { Checkbox } from "@/components/Checkbox";
 import { Editor } from "@/components/Editor";
 import { WindowDragHandle } from "@/components/WindowDragHandle";
 import { useNoteWindowActions } from "@/hooks/useNoteWindowActions";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/windowApi";
 import { type EndResult, WorkingCopy } from "@/lib/workingCopy";
 import type { WindowsGlassEffect } from "@/stores/settings";
+import { refreshSettingsStore } from "@/stores/settingsStore";
 import "@/styles/App.css";
 
 const NOTE_OPACITY_MIN = 0;
@@ -80,7 +82,7 @@ function App({
   const { toggleTheme } = useTheme();
   const { alwaysOnTop, toggleAlwaysOnTop: toggleWindowAlwaysOnTop } =
     useWindowControl();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const appWindow = useMemo(() => getCurrentWindow(), []);
   const windowLabel = appWindow.label;
   const initialWindowOpacity = clamp(
@@ -91,6 +93,12 @@ function App({
   const [workingCopy] = useState(() => new WorkingCopy());
   const [dialog, setDialog] = useState<"delete" | "discard" | null>(null);
   const [deleteResult, setDeleteResult] = useState<EndResult | null>(null);
+  const [dontAskAgain, setDontAskAgain] = useState(false);
+  const [deletionBusy, setDeletionBusy] = useState(false);
+  const [deletionSettingsError, setDeletionSettingsError] = useState<
+    string | null
+  >(null);
+  const deletionPending = useRef(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [noteOpacity, setNoteOpacityState] = useState(initialWindowOpacity);
   const noteOpacityRef = useRef(initialWindowOpacity);
@@ -233,15 +241,55 @@ function App({
     () => setInitialEditorScrollTop(Math.max(0, noteScrollTopRef.current)),
     persistWindowState,
   );
-  const busy = ["closing", "deleting", "quitting"].includes(state.phase);
-  const interactionBlocked = dialog !== null || state.phase !== "ready";
-  const requestDelete = useCallback(() => {
-    if (workingCopy.getSnapshot().phase !== "ready") return;
+  const busy =
+    deletionBusy || ["closing", "deleting", "quitting"].includes(state.phase);
+  const interactionBlocked = busy || dialog !== null || state.phase !== "ready";
+  const deleteNote = useCallback(async () => {
+    const result = await workingCopy.end("delete");
+    if (!result) return;
+    setDeleteResult(result);
+    if (result.error) setDialog("delete");
+  }, [workingCopy]);
+  const requestDelete = useCallback(async () => {
+    if (deletionPending.current || workingCopy.getSnapshot().phase !== "ready")
+      return;
+    deletionPending.current = true;
+    setDeletionBusy(true);
     returnFocusRef.current = globalThis.document
       .activeElement as HTMLElement | null;
     setDeleteResult(null);
-    setDialog("delete");
-  }, [workingCopy]);
+    setDontAskAgain(false);
+    setDeletionSettingsError(null);
+    try {
+      const current = await refreshSettingsStore();
+      if (workingCopy.getSnapshot().phase !== "ready") return;
+      if (current.confirmNoteDeletion) setDialog("delete");
+      else await deleteNote();
+    } catch (error) {
+      logError("settings", "read_deletion_preference_failed", error);
+      setDeletionSettingsError(t("deletion.preferencesUnavailable"));
+      setDialog("delete");
+    } finally {
+      deletionPending.current = false;
+      setDeletionBusy(false);
+    }
+  }, [deleteNote, t, workingCopy]);
+  const confirmDeletion = async () => {
+    if (deletionPending.current) return;
+    deletionPending.current = true;
+    setDeletionBusy(true);
+    setDeletionSettingsError(null);
+    try {
+      if (dontAskAgain) await updateSettings({ confirmNoteDeletion: false });
+      if (["ready", "uncertain"].includes(workingCopy.getSnapshot().phase))
+        await deleteNote();
+    } catch {
+      setDeletionSettingsError(t("deletion.preferencesFailed"));
+    } finally {
+      deletionPending.current = false;
+      setDeletionBusy(false);
+    }
+  };
   const retry = async () => {
     if (workingCopy.hasEndRequest) await workingCopy.retryEnd();
     else if (state.phase === "loading") await workingCopy.load();
@@ -575,16 +623,35 @@ function App({
                         : t("actions.discard"),
                     destructive: true,
                     onAction: () => {
-                      if (dialog === "delete")
-                        void workingCopy.end("delete").then((result) => {
-                          if (result) setDeleteResult(result);
-                        });
+                      if (dialog === "delete") void confirmDeletion();
                       else void workingCopy.end("close", true);
                     },
                   },
                 ]
           }
         >
+          {dialog === "delete" && state.phase !== "ended" ? (
+            <label
+              htmlFor="skip-deletion-confirmation"
+              className="flex shrink-0 cursor-pointer items-center gap-2 text-xs"
+            >
+              <Checkbox
+                id="skip-deletion-confirmation"
+                checked={dontAskAgain}
+                disabled={busy}
+                onCheckedChange={(checked) => setDontAskAgain(checked === true)}
+              />
+              {t("deletion.dontAskAgain")}
+            </label>
+          ) : null}
+          {dialog === "delete" && deletionSettingsError ? (
+            <p
+              role="alert"
+              className="shrink-0 break-words text-xs text-destructive"
+            >
+              {deletionSettingsError}
+            </p>
+          ) : null}
           {dialog === "delete" && deleteResult?.error ? (
             <p
               className="shrink-0 break-words text-xs text-destructive"

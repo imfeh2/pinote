@@ -2,6 +2,7 @@ mod document;
 mod lifecycle;
 mod locale;
 mod note_history;
+mod settings;
 mod shortcut;
 mod storage;
 mod tray;
@@ -36,7 +37,6 @@ const NOTE_WINDOW_MIN_WIDTH: f64 = 1.0;
 const NOTE_WINDOW_MIN_HEIGHT: f64 = 1.0;
 const EXISTING_WINDOW_SHAKE_OFFSETS: [i32; 8] = [0, 14, -12, 10, -8, 6, -4, 0];
 const EXISTING_WINDOW_SHAKE_DELAY_MS: u64 = 14;
-const SETTINGS_FILE_NAME: &str = "settings.json";
 const DEFAULT_NOTE_DIRECTORY_NAME: &str = "notes";
 const DEFAULT_HIDE_NOTE_WINDOWS_FROM_TASKBAR: bool = true;
 const LOGS_DIRECTORY_NAME: &str = "logs";
@@ -461,15 +461,10 @@ fn export_diagnostic_report_to_path(
 }
 
 fn load_stored_settings(app: &tauri::AppHandle) -> StoredSettings {
-    let path = match app.path().app_data_dir() {
-        Ok(dir) => dir.join(SETTINGS_FILE_NAME),
-        Err(_) => return StoredSettings::default(),
-    };
-    let content = match std::fs::read_to_string(path) {
-        Ok(value) => value,
-        Err(_) => return StoredSettings::default(),
-    };
-    serde_json::from_str(&content).unwrap_or_default()
+    serde_json::from_value(serde_json::Value::Object(
+        app.state::<settings::SettingsStore>().snapshot().settings,
+    ))
+    .expect("Invalid native settings")
 }
 
 fn load_hide_note_windows_from_taskbar(app: &tauri::AppHandle) -> bool {
@@ -1056,6 +1051,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            settings::get_settings,
+            settings::update_settings,
             note_history::list_note_history,
             note_history::delete_history_notes,
             note_history::remove_history_records,
@@ -1105,6 +1102,10 @@ pub fn run() {
                 ])
                 .build();
             handle.plugin(log_plugin)?;
+            handle.manage(
+                settings::SettingsStore::new(handle.path().app_data_dir()?.join("settings.json"))
+                    .map_err(std::io::Error::other)?,
+            );
             handle.manage(document::DocumentService::new(
                 handle.path().app_data_dir()?,
             ));

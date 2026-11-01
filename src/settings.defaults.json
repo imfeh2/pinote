@@ -1,0 +1,33 @@
+{
+  "language": "system",
+  "theme": "system",
+  "newNoteDirectory": "",
+  "noteGlassEffectWindows": "none",
+  "noteGlassEffectMacos": true,
+  "editorFontFamily": "system",
+  "editorFontSize": 15,
+  "editorLineHeight": 1.2,
+  "editorPaddingX": 10,
+  "editorPaddingY": 10,
+  "hideNoteWindowsFromTaskbar": true,
+  "contextMenuFollowNoteOpacity": false,
+  "confirmNoteDeletion": true,
+  "wheelResizeModifier": "alt",
+  "wheelOpacityModifier": "ctrl",
+  "dragMouseButton": "middle",
+  "lastUpdateCheckAt": "",
+  "pendingUpdatePromptVersion": "",
+  "dismissedUpdateVersion": "",
+  "shortcuts": {
+    "newNote": "Alt+C",
+    "restoreWindow": "Alt+S",
+    "showAllHiddenWindows": "Alt+Shift+H",
+    "toggleVisibleWindows": "Alt+D",
+    "toggleAlwaysOnTop": "Alt+A",
+    "toggleReadOnly": "Alt+R",
+    "toggleTheme": "Ctrl+Shift+D",
+    "hideWindow": "Escape",
+    "closeWindow": "Ctrl+Shift+W",
+    "deleteNote": "Alt+Y"
+  }
+}

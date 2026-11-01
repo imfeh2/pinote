@@ -1,10 +1,11 @@
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface SettingsSwitchProps {
   checked: boolean;
   label: string;
   disabled?: boolean;
-  onCheckedChange: (checked: boolean) => void;
+  onCheckedChange: (checked: boolean) => Promise<void> | void;
 }
 
 export function SettingsSwitch({
@@ -13,6 +14,15 @@ export function SettingsSwitch({
   disabled = false,
   onCheckedChange,
 }: SettingsSwitchProps) {
+  const pending = useRef<{ value: boolean } | null>(null);
+  const toggle = () => {
+    const request = { value: !(pending.current?.value ?? checked) };
+    pending.current = request;
+    const finish = () => {
+      if (pending.current === request) pending.current = null;
+    };
+    void Promise.resolve(onCheckedChange(request.value)).then(finish, finish);
+  };
   return (
     <button
       type="button"
@@ -20,7 +30,7 @@ export function SettingsSwitch({
       aria-checked={checked}
       aria-label={label}
       disabled={disabled}
-      onClick={() => onCheckedChange(!checked)}
+      onClick={toggle}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-150",
         checked ? "border-primary bg-primary" : "border-border bg-muted",

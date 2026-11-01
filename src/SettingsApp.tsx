@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
 import { HistorySection } from "@/components/settings/HistorySection";
+import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
 import { ShortcutsSection } from "@/components/settings/ShortcutsSection";
 import {
@@ -25,6 +26,7 @@ import { WindowSection } from "@/components/settings/WindowSection";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
 import { saveDiagnosticReport } from "@/lib/diagnostics";
+import { logError } from "@/lib/logger";
 import {
   type NoteHistorySearchResult,
   type NoteHistorySearchSnapshot,
@@ -52,6 +54,8 @@ import {
   setNoteWindowsSkipTaskbar,
   setOpenWithPinoteEnabled,
 } from "@/lib/windowApi";
+
+import type { SettingsPatch } from "@/stores/settingsStore";
 
 const REPOSITORY_URL = "https://github.com/imfeh2/pinote";
 const HISTORY_SEARCH_DEBOUNCE_MS = 120;
@@ -124,7 +128,20 @@ function getInitialSection(): SettingsSection {
 export function SettingsApp() {
   useTheme();
   const { t, i18n } = useTranslation("settings");
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings: saveSettings } = useSettings();
+  const [settingsError, setSettingsError] = useState(false);
+  const updateSettings = useCallback(
+    (patch: SettingsPatch) => {
+      setSettingsError(false);
+      const operation = saveSettings(patch);
+      void operation.then(
+        () => setSettingsError(false),
+        () => setSettingsError(true),
+      );
+      return operation;
+    },
+    [saveSettings],
+  );
   const settingsWindow = useMemo(() => getCurrentWindow(), []);
   const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
     getInitialSection(),
@@ -132,6 +149,13 @@ export function SettingsApp() {
   const [shortcutInvalid, setShortcutInvalid] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupBusy, setStartupBusy] = useState(false);
+  const [startupEnabled, setStartupEnabled] = useState<boolean | null>(null);
+  const [contextMenuEnabled, setContextMenuEnabled] = useState<boolean | null>(
+    null,
+  );
+  const [defaultOpenEnabled, setDefaultOpenEnabled] = useState<boolean | null>(
+    null,
+  );
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateActionError, setUpdateActionError] = useState<string | null>(
     null,
@@ -159,7 +183,9 @@ export function SettingsApp() {
   const [defaultOpenBusy, setDefaultOpenBusy] = useState(false);
   const [defaultOpenError, setDefaultOpenError] = useState<string | null>(null);
   const [taskbarBusy, setTaskbarBusy] = useState(false);
-  const [taskbarError, setTaskbarError] = useState<string | null>(null);
+  const [taskbarError, setTaskbarError] = useState<"save" | "apply" | null>(
+    null,
+  );
   const [bringNotesBackBusy, setBringNotesBackBusy] = useState(false);
   const [bringNotesBackError, setBringNotesBackError] = useState<string | null>(
     null,
@@ -294,7 +320,8 @@ export function SettingsApp() {
   ]);
 
   const handleLaunchAtStartup = useCallback(async () => {
-    const next = !settings.launchAtStartup;
+    if (startupEnabled === null) return;
+    const next = !startupEnabled;
     setStartupBusy(true);
     try {
       if (next) {
@@ -303,55 +330,67 @@ export function SettingsApp() {
         await disable();
       }
       setStartupError(null);
-      updateSettings({ launchAtStartup: next });
+      setStartupEnabled(next);
     } catch (error) {
       setStartupError(getErrorMessage(error, t));
     } finally {
       setStartupBusy(false);
     }
-  }, [settings.launchAtStartup, t, updateSettings]);
+  }, [startupEnabled, t]);
 
   const handleContextMenuIntegration = useCallback(async () => {
-    const next = !settings.openWithPinoteContextMenu;
+    if (contextMenuEnabled === null) return;
+    const next = !contextMenuEnabled;
     setContextMenuBusy(true);
     try {
       const enabled = await setOpenWithPinoteEnabled(next);
-      updateSettings({ openWithPinoteContextMenu: enabled });
+      setContextMenuEnabled(enabled);
       setContextMenuError(null);
     } catch (error) {
       setContextMenuError(getErrorMessage(error, t));
     } finally {
       setContextMenuBusy(false);
     }
-  }, [settings.openWithPinoteContextMenu, t, updateSettings]);
+  }, [contextMenuEnabled, t]);
 
   const handleDefaultOpenIntegration = useCallback(async () => {
-    const next = !settings.defaultMarkdownOpenWithPinote;
+    if (defaultOpenEnabled === null) return;
+    const next = !defaultOpenEnabled;
     setDefaultOpenBusy(true);
     try {
       const enabled = await setDefaultMarkdownOpenEnabled(next);
-      updateSettings({ defaultMarkdownOpenWithPinote: enabled });
+      setDefaultOpenEnabled(enabled);
       setDefaultOpenError(null);
     } catch (error) {
       setDefaultOpenError(getErrorMessage(error, t));
     } finally {
       setDefaultOpenBusy(false);
     }
-  }, [settings.defaultMarkdownOpenWithPinote, t, updateSettings]);
+  }, [defaultOpenEnabled, t]);
 
-  const handleTaskbarVisibility = useCallback(async () => {
-    const next = !settings.hideNoteWindowsFromTaskbar;
-    setTaskbarBusy(true);
-    try {
-      await setNoteWindowsSkipTaskbar(next);
-      updateSettings({ hideNoteWindowsFromTaskbar: next });
-      setTaskbarError(null);
-    } catch (error) {
-      setTaskbarError(getErrorMessage(error, t));
-    } finally {
-      setTaskbarBusy(false);
-    }
-  }, [settings.hideNoteWindowsFromTaskbar, t, updateSettings]);
+  const handleTaskbarVisibility = useCallback(
+    async (retry = false) => {
+      const next = retry
+        ? settings.hideNoteWindowsFromTaskbar
+        : !settings.hideNoteWindowsFromTaskbar;
+      let saved = retry;
+      setTaskbarBusy(true);
+      try {
+        if (!retry) {
+          await saveSettings({ hideNoteWindowsFromTaskbar: next });
+          saved = true;
+        }
+        await setNoteWindowsSkipTaskbar(next);
+        setTaskbarError(null);
+      } catch (error) {
+        setTaskbarError(saved ? "apply" : "save");
+        logError("settings", "taskbar_update_failed", error);
+      } finally {
+        setTaskbarBusy(false);
+      }
+    },
+    [settings.hideNoteWindowsFromTaskbar, saveSettings],
+  );
 
   const handleBringNotesBack = useCallback(async () => {
     setBringNotesBackBusy(true);
@@ -448,14 +487,14 @@ export function SettingsApp() {
       });
       const selectedPath = Array.isArray(selected) ? selected[0] : selected;
       if (typeof selectedPath !== "string" || !selectedPath.trim()) return;
-      updateSettings({ newNoteDirectory: selectedPath.trim() });
+      await saveSettings({ newNoteDirectory: selectedPath.trim() });
       setNotesDirectoryError(null);
     } catch (error) {
       setNotesDirectoryError(getErrorMessage(error, t));
     } finally {
       setNotesDirectoryBusy(false);
     }
-  }, [effectiveNotesDirectory, t, updateSettings]);
+  }, [effectiveNotesDirectory, t, saveSettings]);
 
   const handleOpenNotesDirectory = useCallback(async () => {
     const targetDirectory = effectiveNotesDirectory.trim();
@@ -504,8 +543,7 @@ export function SettingsApp() {
     isEnabled()
       .then((enabled) => {
         if (!active) return;
-        if (settings.launchAtStartup === enabled) return;
-        updateSettings({ launchAtStartup: enabled });
+        setStartupEnabled(enabled);
       })
       .catch((error) => {
         if (!active) return;
@@ -514,15 +552,14 @@ export function SettingsApp() {
     return () => {
       active = false;
     };
-  }, [settings.launchAtStartup, t, updateSettings]);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
     getOpenWithPinoteEnabled()
       .then((enabled) => {
         if (!active) return;
-        if (settings.openWithPinoteContextMenu === enabled) return;
-        updateSettings({ openWithPinoteContextMenu: enabled });
+        setContextMenuEnabled(enabled);
       })
       .catch((error) => {
         if (!active) return;
@@ -531,15 +568,14 @@ export function SettingsApp() {
     return () => {
       active = false;
     };
-  }, [settings.openWithPinoteContextMenu, t, updateSettings]);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
     getDefaultMarkdownOpenEnabled()
       .then((enabled) => {
         if (!active) return;
-        if (settings.defaultMarkdownOpenWithPinote === enabled) return;
-        updateSettings({ defaultMarkdownOpenWithPinote: enabled });
+        setDefaultOpenEnabled(enabled);
       })
       .catch((error) => {
         if (!active) return;
@@ -548,7 +584,7 @@ export function SettingsApp() {
     return () => {
       active = false;
     };
-  }, [settings.defaultMarkdownOpenWithPinote, t, updateSettings]);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
@@ -709,9 +745,23 @@ export function SettingsApp() {
         notesDirectoryBusy={notesDirectoryBusy}
         notesDirectoryError={notesDirectoryError}
         startupBusy={startupBusy}
+        startupEnabled={startupEnabled}
+        contextMenuEnabled={contextMenuEnabled}
+        defaultOpenEnabled={defaultOpenEnabled}
         startupError={startupError}
         taskbarBusy={taskbarBusy}
-        taskbarError={taskbarError}
+        taskbarError={
+          taskbarError === "apply"
+            ? t("window.taskbar.applyFailed")
+            : taskbarError === "save"
+              ? t("errors.saveSettings")
+              : null
+        }
+        onRetryTaskbarVisibility={
+          taskbarError === "apply"
+            ? () => handleTaskbarVisibility(true)
+            : undefined
+        }
         bringNotesBackBusy={bringNotesBackBusy}
         bringNotesBackError={bringNotesBackError}
         bringNotesBackResult={
@@ -735,6 +785,8 @@ export function SettingsApp() {
         onContextMenuIntegration={handleContextMenuIntegration}
         onDefaultOpenIntegration={handleDefaultOpenIntegration}
       />
+    ) : activeSection === "preferences" ? (
+      <PreferencesSection settings={settings} updateSettings={saveSettings} />
     ) : activeSection === "history" ? (
       <HistorySection
         historyQuery={historyRequest.query}
@@ -822,6 +874,11 @@ export function SettingsApp() {
         />
 
         <main className="pinote-scrollbar min-w-0 flex-1 overflow-y-auto px-5 py-4">
+          {settingsError ? (
+            <p role="alert" className="mb-4 text-xs text-destructive">
+              {t("errors.saveSettings")}
+            </p>
+          ) : null}
           {sectionContent}
         </main>
       </div>

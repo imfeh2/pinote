@@ -5,13 +5,18 @@ export default {
     disabled: "已关闭",
     loading: "正在加载…",
     unknown: "未知",
+    retry: "重试",
   },
   sections: {
     appearance: { label: "外观", description: "语言、主题和视觉样式。" },
     window: { label: "窗口", description: "窗口与启动行为。" },
+    preferences: { label: "偏好", description: "便签偏好设置。" },
     shortcuts: { label: "快捷键", description: "键盘快捷键与鼠标操作。" },
     history: { label: "历史记录", description: "查找并重新打开便签。" },
     about: { label: "关于", description: "版本、更新与相关链接。" },
+  },
+  preferences: {
+    confirmNoteDeletion: "删除前确认",
   },
   appearance: {
     language: {
@@ -70,6 +75,7 @@ export default {
     },
     launchAtStartup: "开机时打开 Pinote",
     taskbar: {
+      applyFailed: "设置已保存，但未能更新窗口的任务栏状态。",
       label: "在任务栏中隐藏便签",
       description: "便签不会显示在任务栏中。",
     },
@@ -204,6 +210,7 @@ export default {
     dialog: { title: "保存报告", zipArchive: "Zip 压缩包" },
   },
   errors: {
+    saveSettings: "未能更新设置，请重试。",
     unknown: "无法完成操作。",
     invalidShortcut: "请输入有效的快捷键。",
   },

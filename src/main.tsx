@@ -110,11 +110,8 @@ function StartupUpdateCheck() {
         });
         await openSettingsWindow("about");
       })
-      .catch(() => {
-        const lastCheckedAt = getUpdateState().lastCheckedAt;
-        if (lastCheckedAt) {
-          void updateSettingsStore({ lastUpdateCheckAt: lastCheckedAt });
-        }
+      .catch((error) => {
+        logError("settings", "startup_update_failed", error);
       })
       .finally(() => {
         void closeStartupWindow();

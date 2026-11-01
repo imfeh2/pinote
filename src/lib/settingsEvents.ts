@@ -1,24 +1,10 @@
-import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { Settings } from "@/stores/settings";
-
-type SettingsEventPayload = {
-  settings: Settings;
-  source: string;
-};
-
-export async function emitSettingsUpdated(settings: Settings) {
-  await emit<SettingsEventPayload>("settings-updated", {
-    settings,
-    source: getCurrentWindow().label,
-  });
-}
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { SettingsSnapshot } from "@/stores/settings";
 
 export async function listenSettingsUpdated(
-  handler: (settings: Settings) => void,
+  handler: (snapshot: SettingsSnapshot) => void,
 ): Promise<UnlistenFn> {
-  return listen<SettingsEventPayload>("settings-updated", (event) => {
-    if (event.payload.source === getCurrentWindow().label) return;
-    handler(event.payload.settings);
+  return listen<SettingsSnapshot>("settings-updated", (event) => {
+    handler(event.payload);
   });
 }

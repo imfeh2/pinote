@@ -5,6 +5,7 @@ export default {
     disabled: "Disabled",
     loading: "Loading...",
     unknown: "Unknown",
+    retry: "Retry",
   },
   sections: {
     appearance: {
@@ -14,6 +15,10 @@ export default {
     window: {
       label: "Window",
       description: "Window and startup behavior.",
+    },
+    preferences: {
+      label: "Preferences",
+      description: "Note preferences.",
     },
     shortcuts: {
       label: "Shortcuts",
@@ -27,6 +32,9 @@ export default {
       label: "About",
       description: "Version, updates, and links.",
     },
+  },
+  preferences: {
+    confirmNoteDeletion: "Confirm deletion",
   },
   appearance: {
     language: {
@@ -94,6 +102,7 @@ export default {
     },
     launchAtStartup: "Open Pinote at startup",
     taskbar: {
+      applyFailed: "Setting saved. Could not update taskbar visibility.",
       label: "Hide notes from taskbar",
       description: "Notes won't appear on the taskbar.",
     },
@@ -245,6 +254,7 @@ export default {
     },
   },
   errors: {
+    saveSettings: "Could not update settings. Please try again.",
     unknown: "Couldn't complete the action.",
     invalidShortcut: "Enter a valid shortcut.",
   },

@@ -15,7 +15,6 @@ const DEFAULT_SHOW_ALL_HIDDEN_WINDOWS_SHORTCUT: &str = "Alt+Shift+H";
 const DEFAULT_TOGGLE_VISIBLE_WINDOWS_SHORTCUT: &str = "Alt+D";
 const LEGACY_DEFAULT_RESTORE_WINDOW_SHORTCUT: &str = "Alt+N";
 const LEGACY_DEFAULT_TOGGLE_VISIBLE_WINDOWS_SHORTCUT: &str = "Alt+Shift+N";
-const SETTINGS_FILE_NAME: &str = "settings.json";
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -201,14 +200,13 @@ fn register_shortcuts(
 }
 
 fn load_shortcuts(app: &tauri::AppHandle) -> LoadedShortcuts {
-    let path = app
-        .path()
-        .app_data_dir()
-        .ok()
-        .map(|dir| dir.join(SETTINGS_FILE_NAME));
-    let content = path.and_then(|file_path| std::fs::read_to_string(file_path).ok());
-    let settings = content.and_then(|raw| serde_json::from_str::<StoredSettings>(&raw).ok());
-    let shortcuts = settings.and_then(|stored| stored.shortcuts);
+    let settings: StoredSettings = serde_json::from_value(serde_json::Value::Object(
+        app.state::<crate::settings::SettingsStore>()
+            .snapshot()
+            .settings,
+    ))
+    .expect("Invalid shortcut settings");
+    let shortcuts = settings.shortcuts;
     let new_note = shortcuts
         .as_ref()
         .and_then(|stored| stored.new_note.clone())
