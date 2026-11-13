@@ -678,29 +678,28 @@ mod tests {
         let other = WebviewWindowBuilder::new(&app, "note-b-context-menu", Default::default())
             .build()
             .unwrap();
-        destroy_note_context_menu(app.handle(), "note-without-menu").unwrap();
-        destroy_note_context_menu(app.handle(), "note-a").unwrap();
 
-        let phase = Arc::new(AtomicUsize::new(0));
+        let iterations = Arc::new(AtomicUsize::new(0));
         let observed = Arc::new(AtomicUsize::new(usize::MAX));
         let result = observed.clone();
         app.run(move |app, event| match event {
             tauri::RunEvent::Ready => {
+                destroy_note_context_menu(app, "note-without-menu").unwrap();
+                destroy_note_context_menu(app, "note-a").unwrap();
                 note.destroy().unwrap();
-                let first = phase.clone();
-                app.run_on_main_thread(move || first.store(1, Ordering::SeqCst))
-                    .unwrap();
-                other.destroy().unwrap();
-                let second = phase.clone();
-                app.run_on_main_thread(move || second.store(2, Ordering::SeqCst))
-                    .unwrap();
-                menu.destroy().unwrap();
+            }
+            tauri::RunEvent::MainEventsCleared => {
+                match iterations.fetch_add(1, Ordering::SeqCst) + 1 {
+                    2 => other.destroy().unwrap(),
+                    6 => menu.destroy().unwrap(),
+                    _ => {}
+                }
             }
             tauri::RunEvent::ExitRequested { .. } => {
-                observed.store(phase.load(Ordering::SeqCst), Ordering::SeqCst);
+                observed.store(iterations.load(Ordering::SeqCst), Ordering::SeqCst);
             }
             _ => {}
         });
-        assert_eq!(result.load(Ordering::SeqCst), 1);
+        assert_eq!(result.load(Ordering::SeqCst), 2);
     }
 }
