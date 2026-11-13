@@ -121,6 +121,11 @@ export const sections = [
     descriptionKey: "sections.history.description",
   },
   {
+    id: "changelog",
+    labelKey: "sections.changelog.label",
+    descriptionKey: "sections.changelog.description",
+  },
+  {
     id: "about",
     labelKey: "sections.about.label",
     descriptionKey: "sections.about.description",

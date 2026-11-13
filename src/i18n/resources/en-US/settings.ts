@@ -28,6 +28,7 @@ export default {
       label: "History",
       description: "Find and reopen notes.",
     },
+    changelog: { label: "Changelog", description: "Changes in each version." },
     about: {
       label: "About",
       description: "Version, updates, and links.",
@@ -193,6 +194,9 @@ export default {
     deleteFailedDescription: "These notes could not be removed.",
     cancel: "Cancel",
     close: "Close",
+  },
+  changelog: {
+    current: "Current",
   },
   about: {
     application: {

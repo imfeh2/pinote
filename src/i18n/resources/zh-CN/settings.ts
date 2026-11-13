@@ -13,6 +13,7 @@ export default {
     preferences: { label: "偏好", description: "应用行为与系统集成。" },
     shortcuts: { label: "快捷键", description: "键盘快捷键与鼠标操作。" },
     history: { label: "历史记录", description: "查找并重新打开便签。" },
+    changelog: { label: "更新日志", description: "每个版本的改动。" },
     about: { label: "关于", description: "版本、更新与相关链接。" },
   },
   preferences: {
@@ -154,6 +155,9 @@ export default {
     deleteFailedDescription: "以下便签未能删除。",
     cancel: "取消",
     close: "关闭",
+  },
+  changelog: {
+    current: "当前版本",
   },
   about: {
     application: {

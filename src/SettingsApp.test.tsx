@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import changelog from "@/changelog.json";
 import settingsZh from "@/i18n/resources/zh-CN/settings";
 import { SettingsApp } from "@/SettingsApp";
 import { DEFAULT_SETTINGS, type Settings } from "@/stores/settings";
@@ -219,7 +220,7 @@ test("navigation and settings follow the grouped order", async () => {
       container.querySelectorAll("aside button"),
       (button) => button.textContent,
     ),
-  ).toEqual(["外观", "偏好", "窗口", "快捷键", "历史记录", "关于"]);
+  ).toEqual(["外观", "偏好", "窗口", "快捷键", "历史记录", "更新日志", "关于"]);
   const labels = () =>
     Array.from(
       container.querySelectorAll(
@@ -405,4 +406,19 @@ test("taskbar application failure is explicit and retry reapplies the saved targ
   expect(mocks.taskbar.mock.calls).toEqual([[false], [false]]);
   expect(mocks.update).toHaveBeenCalledOnce();
   expect(container.querySelector('[role="alert"]')).toBeNull();
+});
+
+test("the changelog page lists every version and marks the current one", async () => {
+  await selectPage("更新日志");
+  const versions = Array.from(
+    container.querySelectorAll("main section"),
+    (section) => section.getAttribute("aria-label"),
+  );
+  expect(versions[0]).toBe(`v${changelog[0].version}`);
+  expect(versions).toHaveLength(changelog.length);
+  const current = container.querySelector('main section[aria-label="v0.6.3"]');
+  expect(current?.textContent).toContain(settingsZh.changelog.current);
+  expect(current?.querySelector("li")?.textContent).toBe(
+    changelog.find((entry) => entry.version === "0.6.3")?.changes["zh-CN"][0],
+  );
 });

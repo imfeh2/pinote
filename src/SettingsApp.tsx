@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
+import { ChangelogSection } from "@/components/settings/ChangelogSection";
 import { HistorySection } from "@/components/settings/HistorySection";
 import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
@@ -851,6 +852,8 @@ export function SettingsApp() {
         updateShortcut={updateShortcut}
         updateSettings={updateSettings}
       />
+    ) : activeSection === "changelog" ? (
+      <ChangelogSection appVersion={appVersion} />
     ) : (
       <AboutSection
         appVersion={

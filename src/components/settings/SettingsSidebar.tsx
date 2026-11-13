@@ -5,6 +5,7 @@ import {
   Keyboard,
   type LucideIcon,
   Palette,
+  ScrollText,
   SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -17,8 +18,11 @@ const sectionIcons: Record<SettingsSection, LucideIcon> = {
   preferences: SlidersHorizontal,
   shortcuts: Keyboard,
   history: History,
+  changelog: ScrollText,
   about: Info,
 };
+
+const FOOTER_SECTIONS = new Set<SettingsSection>(["changelog", "about"]);
 
 interface SettingsSidebarProps {
   activeSection: SettingsSection;
@@ -74,10 +78,12 @@ export function SettingsSidebar({
           </div>
         </div>
       </div>
-      {sections.filter((section) => section.id !== "about").map(renderSection)}
+      {sections
+        .filter((section) => !FOOTER_SECTIONS.has(section.id))
+        .map(renderSection)}
       <div className="mt-auto pt-2">
         {sections
-          .filter((section) => section.id === "about")
+          .filter((section) => FOOTER_SECTIONS.has(section.id))
           .map(renderSection)}
       </div>
     </aside>
