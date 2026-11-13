@@ -1,5 +1,7 @@
 import { Download, RefreshCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { normalizeAppLocale } from "@/i18n/locale";
+import { releaseNotesFor } from "@/lib/releaseNotes";
 import type { UpdateSnapshot } from "@/lib/updater";
 import { cn } from "@/lib/utils";
 
@@ -20,18 +22,33 @@ export function UpdateDialog({
   onInstall,
   onLater,
 }: UpdateDialogProps) {
-  const { t } = useTranslation("settings");
+  const { t, i18n } = useTranslation("settings");
+  const changes = releaseNotesFor(
+    snapshot.notes ?? "",
+    normalizeAppLocale(i18n.resolvedLanguage),
+  );
   const latestVersion = snapshot.latestVersion ?? t("common.unknown");
   const currentVersion = snapshot.currentVersion || t("common.unknown");
   const isDownloading = snapshot.state === "downloading";
   const isReady = snapshot.state === "readyToRestart";
   const actionDisabled = busy || snapshot.state === "checking";
-  const progressText =
-    isDownloading && snapshot.downloadProgress !== null
-      ? t("updateDialog.downloadingProgress", {
-          progress: snapshot.downloadProgress,
-        })
-      : t("updateDialog.readyToDownload");
+  const progress = isDownloading ? (snapshot.downloadProgress ?? 0) : null;
+  const actionContent = (
+    <>
+      {isReady ? <RefreshCw size={14} /> : <Download size={14} />}
+      <span className="tabular-nums">
+        {isReady
+          ? t("updateDialog.restart")
+          : isDownloading
+            ? snapshot.downloadProgress === null
+              ? t("updateDialog.downloading")
+              : t("updateDialog.downloadingProgress", {
+                  progress: snapshot.downloadProgress,
+                })
+            : t("updateDialog.download")}
+      </span>
+    </>
+  );
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/72 p-5 backdrop-blur-sm">
@@ -62,9 +79,19 @@ export function UpdateDialog({
           </button>
         </div>
 
-        <div className="mb-4 text-xs text-muted-foreground">
-          {error ?? (isReady ? t("updateDialog.restartHelp") : progressText)}
-        </div>
+        {changes.length > 0 ? (
+          <ul className="pinote-scrollbar mb-3 flex max-h-40 list-disc flex-col gap-1 overflow-y-auto pl-4 text-xs text-foreground">
+            {changes.map((change) => (
+              <li key={change}>{change}</li>
+            ))}
+          </ul>
+        ) : null}
+
+        {error ? (
+          <p role="alert" className="mb-3 text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <div className="flex items-center justify-end gap-2">
           <button
@@ -78,27 +105,39 @@ export function UpdateDialog({
           >
             {t("updateDialog.later")}
           </button>
-          <button
-            type="button"
-            disabled={actionDisabled || isDownloading}
-            onClick={() => {
-              void (isReady ? onInstall() : onDownload());
-            }}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90",
-              (actionDisabled || isDownloading) &&
-                "cursor-not-allowed opacity-60",
-            )}
-          >
-            {isReady ? <RefreshCw size={14} /> : <Download size={14} />}
-            <span>
-              {isReady
-                ? t("updateDialog.restart")
-                : isDownloading
-                  ? t("updateDialog.downloading")
-                  : t("updateDialog.download")}
-            </span>
-          </button>
+          {progress === null ? (
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={() => {
+                void (isReady ? onInstall() : onDownload());
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90",
+                actionDisabled && "cursor-not-allowed opacity-60",
+              )}
+            >
+              {actionContent}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="relative inline-flex items-center gap-1.5 rounded-md border border-transparent bg-primary/10 bg-origin-border px-3 py-1.5 text-xs font-medium text-primary"
+              style={{
+                backgroundImage: `linear-gradient(to right, var(--color-primary) ${progress}%, transparent ${progress}%)`,
+              }}
+            >
+              {actionContent}
+              <span
+                aria-hidden="true"
+                className="absolute -inset-px flex items-center gap-1.5 border border-transparent px-3 py-1.5 text-primary-foreground"
+                style={{ clipPath: `inset(0 ${100 - progress}% 0 0)` }}
+              >
+                {actionContent}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </div>

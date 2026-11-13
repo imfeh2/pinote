@@ -239,9 +239,7 @@ export default {
   updateDialog: {
     title: "Update available",
     versions: "{{currentVersion}} → {{latestVersion}}",
-    readyToDownload: "Ready to download.",
     downloadingProgress: "Downloading {{progress}}%",
-    restartHelp: "Restart to finish installing.",
     later: "Later",
     restart: "Restart",
     downloading: "Downloading",

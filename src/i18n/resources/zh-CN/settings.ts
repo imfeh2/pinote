@@ -200,9 +200,7 @@ export default {
   updateDialog: {
     title: "发现新版本",
     versions: "{{currentVersion}} → {{latestVersion}}",
-    readyToDownload: "可以下载了。",
     downloadingProgress: "正在下载 {{progress}}%",
-    restartHelp: "重启以完成安装。",
     later: "稍后",
     restart: "重启",
     downloading: "正在下载",
