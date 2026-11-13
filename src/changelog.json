@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.6.7",
+    "changes": {
+      "en-US": [
+        "Fixed Pinote failing to start on Windows computers without the Microsoft Visual C++ Redistributable."
+      ],
+      "zh-CN": [
+        "修复了在没有安装 Microsoft Visual C++ 运行库的 Windows 电脑上无法启动的问题。"
+      ]
+    }
+  },
+  {
     "version": "0.6.6",
     "changes": {
       "en-US": [
