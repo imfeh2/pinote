@@ -5,6 +5,13 @@ const note = {
     reload: "Load changes",
     ignore: "Keep current content",
   },
+  alerts: {
+    note: "Note",
+    tip: "Tip",
+    important: "Important",
+    warning: "Warning",
+    caution: "Caution",
+  },
   actions: {
     retry: "Retry",
     close: "Close",

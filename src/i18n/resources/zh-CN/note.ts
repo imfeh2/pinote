@@ -5,6 +5,13 @@ const note = {
     reload: "加载更改",
     ignore: "保留当前内容",
   },
+  alerts: {
+    note: "备注",
+    tip: "提示",
+    important: "重要",
+    warning: "警告",
+    caution: "谨慎",
+  },
   actions: {
     retry: "重试",
     close: "关闭",

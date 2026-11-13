@@ -1,13 +1,3 @@
-import {
-  defaultValueCtx,
-  editorViewOptionsCtx,
-  Editor as MilkdownEditorCore,
-  rootCtx,
-} from "@milkdown/kit/core";
-import { commonmark } from "@milkdown/kit/preset/commonmark";
-import { gfm } from "@milkdown/kit/preset/gfm";
-import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
-import { nord } from "@milkdown/theme-nord";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { ListX, LoaderCircle, Trash2 } from "lucide-react";
 import {
@@ -23,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@/components/AlertDialog";
 import { Checkbox } from "@/components/Checkbox";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { useHistorySelection } from "@/hooks/useHistorySelection";
 import {
   deleteHistoryNotes,
@@ -52,26 +43,6 @@ interface PreviewState {
   y: number;
   notePath: string;
   content: string;
-}
-
-function NotePreview({ markdown }: { markdown: string }) {
-  useEditor(
-    (root) =>
-      MilkdownEditorCore.make()
-        .config(nord)
-        .config((ctx) => {
-          ctx.set(rootCtx, root);
-          ctx.set(defaultValueCtx, markdown);
-          ctx.update(editorViewOptionsCtx, (prev) => ({
-            ...prev,
-            editable: () => false,
-          }));
-        })
-        .use(commonmark)
-        .use(gfm),
-    [],
-  );
-  return <Milkdown />;
 }
 
 function splitPath(path: string) {
@@ -521,12 +492,10 @@ export function HistorySection({
                   } as CSSProperties
                 }
               >
-                <MilkdownProvider>
-                  <NotePreview
-                    key={preview.notePath}
-                    markdown={preview.content}
-                  />
-                </MilkdownProvider>
+                <MarkdownPreview
+                  key={preview.notePath}
+                  markdown={preview.content}
+                />
               </div>
             </div>
           </aside>,

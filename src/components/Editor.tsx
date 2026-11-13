@@ -23,6 +23,7 @@ import {
 import { nord } from "@milkdown/theme-nord";
 import { type CSSProperties, useCallback, useEffect, useRef } from "react";
 import "@milkdown/theme-nord/style.css";
+import { alert } from "@/lib/markdownAlert";
 
 interface EditorInnerProps {
   defaultValue: string;
@@ -64,6 +65,7 @@ function EditorInner({ defaultValue, readOnly, onChange }: EditorInnerProps) {
         })
         .use(commonmark)
         .use(gfm)
+        .use(alert)
         .use(history)
         .use(clipboard)
         .use(indent)
