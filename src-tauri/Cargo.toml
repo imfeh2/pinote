@@ -45,3 +45,6 @@ tauri-build = { version = "2", features = [] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.55"
+
+[target."cfg(unix)".dev-dependencies]
+nix = { version = "0.31", features = ["fs"] }

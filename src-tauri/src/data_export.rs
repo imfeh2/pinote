@@ -170,7 +170,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn preserves_links_and_cleans_up_an_incomplete_export() {
-        use std::os::unix::{fs::symlink, net::UnixListener};
+        use std::os::unix::fs::symlink;
         let directory = crate::storage::test_directory();
         let source = directory.path().join("data");
         fs::create_dir(&source).unwrap();
@@ -186,7 +186,7 @@ mod tests {
         drop(link);
         drop(archive);
         let previous = fs::read(&destination).unwrap();
-        let _socket = UnixListener::bind(source.join("socket")).unwrap();
+        nix::unistd::mkfifo(&source.join("pipe"), nix::sys::stat::Mode::S_IRWXU).unwrap();
         assert!(export_to_path(&source, &destination).is_err());
         assert_eq!(fs::read(&destination).unwrap(), previous);
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
