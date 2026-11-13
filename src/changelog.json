@@ -81,14 +81,14 @@
     "changes": {
       "en-US": [
         "History previews now render Markdown and scroll long titles.",
-        "Added a tray tooltip and clarified the glass effect options; the default is now transparent.",
+        "Added a tray tooltip and clarified the glass effect options; on Windows the default is now transparent.",
         "Diagnostic reports now include system information and drag details.",
         "Simplified the settings pages and fixed a settings saving loop.",
         "Window dragging is smoother."
       ],
       "zh-CN": [
         "历史记录预览会渲染 Markdown，长标题会滚动显示。",
-        "新增托盘图标提示，玻璃效果选项更清楚，默认改为透明。",
+        "新增托盘图标提示，玻璃效果选项更清楚，Windows 上默认改为透明。",
         "诊断报告新增系统信息和拖动操作记录。",
         "精简了设置页面，修复了设置被反复写入的问题。",
         "拖动窗口更流畅。"
@@ -137,11 +137,11 @@
     "changes": {
       "en-US": [
         "Pinote now prompts at startup when a new version is available.",
-        "Pinote is now available on WinGet."
+        "New versions are published to WinGet automatically."
       ],
       "zh-CN": [
         "启动时如果有新版本，会提示更新。",
-        "Pinote 可以通过 WinGet 安装。"
+        "新版本会自动发布到 WinGet。"
       ]
     }
   },
@@ -209,11 +209,13 @@
     "changes": {
       "en-US": [
         "Added a shortcut for creating a new note.",
-        "Settings now show whether each global shortcut was registered, and handle shortcut conflicts."
+        "Pinote now starts even when a global shortcut is taken by another app, and the other shortcuts keep working.",
+        "Settings show whether each global shortcut was registered."
       ],
       "zh-CN": [
         "新增新建便签的快捷键。",
-        "设置中会显示全局快捷键是否注册成功，并能处理快捷键冲突。"
+        "全局快捷键被其他程序占用时，Pinote 也能正常启动，其他快捷键照常可用。",
+        "设置中会显示每个全局快捷键是否注册成功。"
       ]
     }
   },
