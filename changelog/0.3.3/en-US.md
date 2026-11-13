@@ -1,0 +1,5 @@
+- Added optional integration with the Explorer context menu and opening Markdown files with Pinote by default.
+- Notes created from the context menu keep the opacity and always-on-top state of the current note.
+- Note opacity can go from 0 to 100 percent, and the pinned indicator and scrollbar follow it.
+- Simplified the note context menu and placed it next to the cursor.
+- Hidden notes stay hidden after a restart.

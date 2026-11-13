@@ -1,0 +1,4 @@
+- Added multi-select and batch deletion in History.
+- Added removing notes from History without deleting the files.
+- History is now saved safely, accepts files with a UTF-8 BOM and can be updated while it is being read.
+- Refined the History layout and disabled the browser context menu in Settings.

@@ -1,0 +1,1 @@
+- Fixed Pinote failing to start on Windows computers without the Microsoft Visual C++ Redistributable.

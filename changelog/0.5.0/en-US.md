@@ -1,0 +1,2 @@
+- Updated the app icons.
+- The shortcut that hides and shows visible notes remembers which notes it hid across restarts.

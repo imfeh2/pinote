@@ -1,13 +1,19 @@
 import { readFileSync } from "node:fs";
 import {
-  type ChangelogEntry,
   formatReleaseBody,
+  RELEASE_LOCALES,
+  type ReleaseNotes,
 } from "../src/lib/releaseNotes.ts";
 
 const version = process.argv[2];
-const changelog: ChangelogEntry[] = JSON.parse(
-  readFileSync(new URL("../src/changelog.json", import.meta.url), "utf8"),
-);
-const entry = changelog.find((candidate) => candidate.version === version);
-if (!entry) throw new Error(`No changelog entry for version ${version}`);
-process.stdout.write(formatReleaseBody(entry));
+if (!version) throw new Error("Pass the version to print release notes for");
+const notes = Object.fromEntries(
+  RELEASE_LOCALES.map((locale) => [
+    locale,
+    readFileSync(
+      new URL(`../changelog/${version}/${locale}.md`, import.meta.url),
+      "utf8",
+    ),
+  ]),
+) as ReleaseNotes;
+process.stdout.write(formatReleaseBody(notes));

@@ -1,0 +1,2 @@
+- Pinote now prompts at startup when a new version is available.
+- New versions are published to WinGet automatically.

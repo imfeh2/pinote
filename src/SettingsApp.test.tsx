@@ -5,8 +5,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import changelog from "@/changelog.json";
 import settingsZh from "@/i18n/resources/zh-CN/settings";
+import { changelog } from "@/lib/changelog";
 import { SettingsApp } from "@/SettingsApp";
 import { DEFAULT_SETTINGS, type Settings } from "@/stores/settings";
 
@@ -418,7 +418,10 @@ test("the changelog page lists every version and marks the current one", async (
   expect(versions).toHaveLength(changelog.length);
   const current = container.querySelector('main section[aria-label="v0.6.3"]');
   expect(current?.textContent).toContain(settingsZh.changelog.current);
-  expect(current?.querySelector("li")?.textContent).toBe(
-    changelog.find((entry) => entry.version === "0.6.3")?.changes["zh-CN"][0],
+  const notes = changelog.find((entry) => entry.version === "0.6.3")?.notes;
+  await vi.waitFor(() =>
+    expect(current?.querySelector("li")?.textContent).toBe(
+      notes?.["zh-CN"].split("\n")[0].slice(2),
+    ),
   );
 });

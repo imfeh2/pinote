@@ -1,0 +1,4 @@
+- Added choosing the folder for new notes.
+- Added opening Markdown files from the command line.
+- Note windows are restored at the next launch with their position, size, pin state and visibility.
+- The restore shortcut brings back the most recently hidden note.

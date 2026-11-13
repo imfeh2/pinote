@@ -1,0 +1,1 @@
+- Added space around the editor so the cursor does not overlap the window resize edges.

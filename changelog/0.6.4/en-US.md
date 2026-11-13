@@ -1,0 +1,5 @@
+- Added deleting notes, with an optional confirmation before deleting.
+- Pinote saves every open note before quitting.
+- When saving or closing a note fails, Pinote shows the problem with Retry, Close and Discard options instead of losing changes.
+- Context menus are now released when their note closes.
+- Improved the contrast of the delete menu item.

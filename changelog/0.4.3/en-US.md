@@ -1,0 +1,2 @@
+- Fixed a freeze that could happen when creating windows.
+- Reduced unnecessary log output.

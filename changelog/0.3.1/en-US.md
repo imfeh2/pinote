@@ -1,0 +1,3 @@
+- Opacity and always-on-top are now set per note.
+- Resizing with the mouse wheel keeps the window around the cursor, and the modifier key is configurable.
+- Improved the always-on-top indicator.

@@ -1,0 +1,5 @@
+- Notes update when their files are changed by another app.
+- Opening a note that is already open brings its window to the front with a shake.
+- Added searchable note history and remembering the scroll position of each note.
+- Added glass effect settings for each platform and a blur strength control.
+- Added choosing the mouse button for dragging, a shortcut to toggle visible notes, and hiding notes from the taskbar.

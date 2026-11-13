@@ -1,9 +1,8 @@
+import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import changelog from "@/changelog.json";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { normalizeAppLocale } from "@/i18n/locale";
-import type { ChangelogEntry } from "@/lib/releaseNotes";
-
-const entries: ChangelogEntry[] = changelog;
+import { changelog } from "@/lib/changelog";
 
 export function ChangelogSection({
   appVersion,
@@ -15,7 +14,7 @@ export function ChangelogSection({
 
   return (
     <div className="flex flex-col gap-4">
-      {entries.map((entry) => (
+      {changelog.map((entry) => (
         <section
           key={entry.version}
           aria-label={`v${entry.version}`}
@@ -29,11 +28,19 @@ export function ChangelogSection({
               </span>
             ) : null}
           </h2>
-          <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-muted-foreground">
-            {entry.changes[locale].map((change) => (
-              <li key={change}>{change}</li>
-            ))}
-          </ul>
+          <div
+            className="milkdown-editor text-muted-foreground"
+            style={
+              {
+                "--editor-font-size": "12px",
+                "--editor-line-height": "1.5",
+                "--editor-padding-x": "0px",
+                "--editor-padding-y": "0px",
+              } as CSSProperties
+            }
+          >
+            <MarkdownPreview key={locale} markdown={entry.notes[locale]} />
+          </div>
         </section>
       ))}
     </div>

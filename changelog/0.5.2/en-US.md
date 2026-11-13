@@ -1,0 +1,2 @@
+- Added bringing notes that are off screen back into view.
+- Hidden notes are no longer recorded as visible by mistake, so they stay hidden after a restart.

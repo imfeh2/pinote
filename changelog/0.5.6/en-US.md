@@ -1,0 +1,3 @@
+- The dark theme now uses pure black.
+- Note window shortcuts are no longer swallowed by the editor.
+- Middle-clicking a note no longer pastes text.

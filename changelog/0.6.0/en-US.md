@@ -1,0 +1,3 @@
+- Added Chinese and English interface languages.
+- Added revealing the note file from the context menu.
+- Redesigned Settings with sidebar icons, switches, number inputs and the native title bar.

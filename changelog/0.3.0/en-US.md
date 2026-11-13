@@ -1,0 +1,4 @@
+- Added multiple note windows.
+- Added a context menu. Drag a window with the middle mouse button, middle-click to pin it, and hold Ctrl while scrolling to resize it.
+- Added typography and page spacing settings.
+- Redesigned Settings with a sidebar and removed the note title bar.

@@ -1,0 +1,1 @@
+- First release: a floating Markdown note editor.

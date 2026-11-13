@@ -4,13 +4,17 @@ import { createInstance } from "i18next";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, beforeAll, expect, test, vi } from "vitest";
 import { UpdateDialog } from "@/components/settings/UpdateDialog";
+import { initializeI18n } from "@/i18n";
+import noteZh from "@/i18n/resources/zh-CN/note";
 import settingsZh from "@/i18n/resources/zh-CN/settings";
 import { formatReleaseBody } from "@/lib/releaseNotes";
 import type { UpdateSnapshot } from "@/lib/updater";
 
 const cleanups: (() => Promise<void>)[] = [];
+
+beforeAll(() => initializeI18n("zh-CN"));
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
@@ -58,16 +62,23 @@ async function renderDialog(
   return container;
 }
 
-test("the update dialog lists the new version's changes in the interface language", async () => {
+test("the update dialog shows the new version's notes in the interface language", async () => {
   const container = await renderDialog({
     notes: formatReleaseBody({
-      version: "0.6.6",
-      changes: { "en-US": ["English change"], "zh-CN": ["中文改动"] },
+      "en-US": "> [!WARNING]\n> Back up first.\n\n- English change",
+      "zh-CN": "> [!WARNING]\n> 请先备份。\n\n- 中文改动",
     }),
   });
-  expect(
-    Array.from(container.querySelectorAll("li"), (item) => item.textContent),
-  ).toEqual(["中文改动"]);
+  await vi.waitFor(() =>
+    expect(
+      Array.from(container.querySelectorAll("li"), (item) => item.textContent),
+    ).toEqual(["中文改动"]),
+  );
+  await vi.waitFor(() =>
+    expect(container.querySelector(".pinote-alert-warning")?.textContent).toBe(
+      `${noteZh.alerts.warning}请先备份。`,
+    ),
+  );
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 

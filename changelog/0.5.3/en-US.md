@@ -1,0 +1,1 @@
+- Focusing a note no longer disturbs the saved state of hidden notes.

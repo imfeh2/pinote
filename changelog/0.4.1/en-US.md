@@ -1,0 +1,3 @@
+- Added a shortcut for creating a new note.
+- Pinote now starts even when a global shortcut is taken by another app, and the other shortcuts keep working.
+- Settings show whether each global shortcut was registered.

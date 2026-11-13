@@ -1,0 +1,1 @@
+- New note windows open in the center of the screen.

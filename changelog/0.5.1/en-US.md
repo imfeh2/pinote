@@ -1,0 +1,1 @@
+- Adjusted the padding of the app icon.

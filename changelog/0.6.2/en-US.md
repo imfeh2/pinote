@@ -1,0 +1,2 @@
+- Linux packages are now built on Ubuntu 22.04 so they run on more systems.
+- Improved the build and release process.

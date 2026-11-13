@@ -1,0 +1,1 @@
+- 修复了在没有安装 Microsoft Visual C++ 运行库的 Windows 电脑上无法启动的问题。

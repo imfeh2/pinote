@@ -1,5 +1,7 @@
 import { Download, RefreshCw, X } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { normalizeAppLocale } from "@/i18n/locale";
 import { releaseNotesFor } from "@/lib/releaseNotes";
 import type { UpdateSnapshot } from "@/lib/updater";
@@ -23,7 +25,7 @@ export function UpdateDialog({
   onLater,
 }: UpdateDialogProps) {
   const { t, i18n } = useTranslation("settings");
-  const changes = releaseNotesFor(
+  const notes = releaseNotesFor(
     snapshot.notes ?? "",
     normalizeAppLocale(i18n.resolvedLanguage),
   );
@@ -79,12 +81,20 @@ export function UpdateDialog({
           </button>
         </div>
 
-        {changes.length > 0 ? (
-          <ul className="pinote-scrollbar mb-3 flex max-h-40 list-disc flex-col gap-1 overflow-y-auto pl-4 text-xs text-foreground">
-            {changes.map((change) => (
-              <li key={change}>{change}</li>
-            ))}
-          </ul>
+        {notes ? (
+          <div
+            className="milkdown-editor pinote-scrollbar mb-3 max-h-40 text-foreground"
+            style={
+              {
+                "--editor-font-size": "12px",
+                "--editor-line-height": "1.5",
+                "--editor-padding-x": "0px",
+                "--editor-padding-y": "0px",
+              } as CSSProperties
+            }
+          >
+            <MarkdownPreview markdown={notes} />
+          </div>
         ) : null}
 
         {error ? (

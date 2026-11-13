@@ -1,0 +1,2 @@
+- Added a Changelog page to Settings that lists the changes in every version.
+- The update dialog now shows what changed in the new version.

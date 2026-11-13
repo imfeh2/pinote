@@ -1,0 +1,3 @@
+- Added exporting all application data as a ZIP archive.
+- Reorganized the Preferences and Window settings pages.
+- Refined the About page layout and unified menu item styles.

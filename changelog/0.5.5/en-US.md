@@ -1,0 +1,1 @@
+- Added exporting a diagnostic report.

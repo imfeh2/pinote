@@ -1,0 +1,5 @@
+- Added a read-only mode for each note.
+- Added shortcuts for closing a window and showing all hidden windows, and updated the default shortcuts.
+- The context menu can follow the note's opacity.
+- Clicking the tray icon restores the most recently hidden note, or creates a new note when none is hidden.
+- When there is nothing to restore, visible notes come to the front and shake.

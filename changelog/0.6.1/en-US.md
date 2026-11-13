@@ -1,0 +1,5 @@
+- History previews now render Markdown and scroll long titles.
+- Added a tray tooltip and clarified the glass effect options; on Windows the default is now transparent.
+- Diagnostic reports now include system information and drag details.
+- Simplified the settings pages and fixed a settings saving loop.
+- Window dragging is smoother.

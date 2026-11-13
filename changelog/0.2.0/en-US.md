@@ -1,0 +1,3 @@
+- Added automatic updates.
+- Added a Settings window with launching at startup and customizable shortcuts.
+- Added window transparency effects and opacity control.
