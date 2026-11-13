@@ -32,11 +32,15 @@
     "changes": {
       "en-US": [
         "Added deleting notes, with an optional confirmation before deleting.",
+        "Pinote saves every open note before quitting.",
+        "When saving or closing a note fails, Pinote shows the problem with Retry, Close and Discard options instead of losing changes.",
         "Context menus are now released when their note closes.",
         "Improved the contrast of the delete menu item."
       ],
       "zh-CN": [
         "新增删除便签，删除前可以选择是否确认。",
+        "Pinote 退出前会先保存所有打开的便签。",
+        "保存或关闭便签失败时，会显示问题并提供重试、关闭和放弃更改，不会悄悄丢失内容。",
         "便签关闭后，它的右键菜单也会一并释放。",
         "提高了删除菜单项的文字对比度。"
       ]
@@ -124,11 +128,8 @@
   {
     "version": "0.5.5",
     "changes": {
-      "en-US": [
-        "Added exporting a diagnostic report.",
-        "Updated dependencies."
-      ],
-      "zh-CN": ["新增导出诊断报告。", "更新了依赖。"]
+      "en-US": ["Added exporting a diagnostic report."],
+      "zh-CN": ["新增导出诊断报告。"]
     }
   },
   {
@@ -158,11 +159,11 @@
     "changes": {
       "en-US": [
         "Added bringing notes that are off screen back into view.",
-        "Hidden window states are preserved correctly."
+        "Hidden notes are no longer recorded as visible by mistake, so they stay hidden after a restart."
       ],
       "zh-CN": [
         "新增把移出屏幕的便签移回可见区域。",
-        "正确保留窗口的隐藏状态。"
+        "隐藏的便签不会再被误记为显示状态，重启后仍保持隐藏。"
       ]
     }
   },
@@ -190,13 +191,10 @@
     "version": "0.4.3",
     "changes": {
       "en-US": [
-        "Fixed a freeze when creating windows on Windows.",
+        "Fixed a freeze that could happen when creating windows.",
         "Reduced unnecessary log output."
       ],
-      "zh-CN": [
-        "修复了 Windows 上新建窗口时卡住的问题。",
-        "减少了不必要的日志输出。"
-      ]
+      "zh-CN": ["修复了新建窗口时可能卡住的问题。", "减少了不必要的日志输出。"]
     }
   },
   {
