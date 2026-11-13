@@ -66,9 +66,7 @@ export function SettingsSidebar({
   return (
     <aside className="flex w-48 shrink-0 flex-col border-r border-border bg-background/60 p-2">
       <div className="mb-2 flex items-center gap-2.5 border-b border-border px-2 pb-3 pt-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-          <img src="/favicon.ico" alt="" className="h-8 w-8" />
-        </div>
+        <img src="/favicon.ico" alt="" className="h-9 w-9 shrink-0" />
         <div className="min-w-0 select-none">
           <div className="truncate text-sm font-semibold tracking-tight text-foreground">
             Pinote
