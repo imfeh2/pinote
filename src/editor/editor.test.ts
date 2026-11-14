@@ -298,6 +298,17 @@ test("line shortcuts ignore a line where the selection only reaches its start", 
   expect(onChange).toHaveBeenLastCalledWith("- a\n- b\nc\n");
 });
 
+test("heading shortcuts turn a heading of the same level back into text", () => {
+  const onChange = vi.fn();
+  const view = createView("Title\n", onChange);
+  expect(press(view, "2", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith("## Title\n");
+  expect(press(view, "3", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith("### Title\n");
+  expect(press(view, "3", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith("Title\n");
+});
+
 test("images and links that span lines stay as source text", () => {
   const view = createView(
     "![first\nsecond](a.png)\n\n[text](\nhttps://example.com)\n",

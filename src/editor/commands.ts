@@ -64,7 +64,7 @@ function replaceLinePrefixes(
   state: EditorState,
   dispatch: Parameters<StateCommand>[0]["dispatch"],
   pattern: RegExp,
-  prefix: (index: number, allMatch: boolean) => string,
+  prefix: (index: number, allMatch: boolean, text: string) => string,
   replaced: RegExp = pattern,
 ) {
   const selected = selectedLines(state);
@@ -77,23 +77,30 @@ function replaceLinePrefixes(
     return {
       from: line.from + indentation.length,
       to: line.from + existing,
-      insert: prefix(index, allMatch),
+      insert: prefix(index, allMatch, line.text),
     };
   });
   dispatch(state.update({ changes, userEvent: "input.format" }));
   return true;
 }
 
-function setHeading(level: number): StateCommand {
+const HEADING_MARKER = /^\s*#{1,6}[ \t]+/;
+
+function toggleHeading(level: number): StateCommand {
   return ({ state, dispatch }) =>
-    replaceLinePrefixes(state, dispatch, /^\s*#{1,6}[ \t]+/, () =>
-      level === 0 ? "" : `${"#".repeat(level)} `,
+    replaceLinePrefixes(
+      state,
+      dispatch,
+      new RegExp(`^\\s*#{${level}}[ \\t]+`),
+      (_index, allMatch) =>
+        level === 0 || allMatch ? "" : `${"#".repeat(level)} `,
+      HEADING_MARKER,
     );
 }
 
 function toggleLinePrefix(
   pattern: RegExp,
-  prefix: (index: number) => string,
+  prefix: (index: number, text: string) => string,
   replaced: RegExp = pattern,
 ): StateCommand {
   return ({ state, dispatch }) =>
@@ -101,15 +108,15 @@ function toggleLinePrefix(
       state,
       dispatch,
       pattern,
-      (index, allMatch) => (allMatch ? "" : prefix(index)),
+      (index, allMatch, text) => (allMatch ? "" : prefix(index, text)),
       replaced,
     );
 }
 
-const LIST_MARKER = /^\s*([-*+]|\d+[.)])[ \t]+/;
+const LIST_MARKER = /^\s*([-*+]|\d+[.)])[ \t]+(\[[ xX]\][ \t]+)?/;
 const toggleBlockquote = toggleLinePrefix(/^\s*>[ \t]?/, () => "> ");
 const toggleBulletList = toggleLinePrefix(
-  /^\s*[-*+][ \t]+/,
+  /^\s*[-*+][ \t]+(?!\[[ xX]\][ \t])/,
   () => "- ",
   LIST_MARKER,
 );
@@ -171,7 +178,7 @@ export const formattingKeymap: readonly KeyBinding[] = [
   { key: "Mod-Alt-x", run: toggleInline("~~") },
   ...[0, 1, 2, 3, 4, 5, 6].map((level) => ({
     key: `Mod-Alt-${level}`,
-    run: setHeading(level),
+    run: toggleHeading(level),
   })),
   { key: "Mod-Shift-b", run: toggleBlockquote },
   { key: "Mod-Alt-7", run: toggleOrderedList },
