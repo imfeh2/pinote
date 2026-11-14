@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This file contains one literal absolute executable path, not shell code.
+executable=${PINOTE_EXECUTABLE:-}
+if [[ -z $executable ]]; then
+    config_home=${XDG_CONFIG_HOME:-}
+    if [[ $config_home != /* ]]; then
+        config_home=${HOME:?HOME is required}/.config
+    fi
+    path_file=$config_home/pinote-launcher/executable
+    if [[ -r $path_file ]]; then
+        IFS= read -r executable < "$path_file" || true
+    fi
+fi
+
+if [[ $executable != /* || ! -f $executable || ! -x $executable ]]; then
+    printf '%s\n' 'pinote-launcher: configure an absolute executable path with PINOTE_EXECUTABLE or pinote-launcher/executable in XDG_CONFIG_HOME.' >&2
+    exit 1
+fi
+
+# Leave GTK/WebKit, accessibility and sandbox defaults alone unless opted in.
+if [[ ${PINOTE_SOFTWARE_COMPOSITING:-0} == 1 ]]; then
+    export WEBKIT_DISABLE_COMPOSITING_MODE=1
+fi
+if [[ ${PINOTE_DISABLE_WEBKIT_A11Y:-0} == 1 ]]; then
+    export WEBKIT_A11Y_BUS_ADDRESS=
+fi
+
+exec "$executable" "$@"

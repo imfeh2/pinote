@@ -687,6 +687,28 @@ impl DocumentService {
             .collect()
     }
 
+    #[cfg(target_os = "linux")]
+    pub async fn renderer_terminated(&self, label: String) -> Result<(), DocumentError> {
+        // A dead renderer cannot answer close or exit requests. Keep its binding
+        // and cached window state so a reload reads the last saved file.
+        let document = match self.for_window(&label) {
+            Ok(document) => document,
+            Err(DocumentError::Ended) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+        Self::run(document, move |document| {
+            if let Some(session) = document.session.as_mut()
+                && session.label == label
+            {
+                session.ready = false;
+            }
+            Ok(())
+        })
+        .await?;
+        self.lifecycle.renderer_terminated();
+        Ok(())
+    }
+
     pub async fn ready_sessions(&self) -> Result<Vec<String>, DocumentError> {
         let mut labels = Vec::new();
         for document in self.active_documents() {
@@ -886,6 +908,48 @@ mod tests {
                     ("active", "note-session-ended"),
                 ]
             );
+        });
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_terminated_renderer_does_not_block_exit_and_reloads_the_saved_file() {
+        let directory = crate::storage::test_directory();
+        tauri::async_runtime::block_on(async {
+            let service = DocumentService::new(directory.path().to_path_buf());
+            for label in ["failed", "healthy"] {
+                let path = directory.path().join(format!("{label}.md"));
+                fs::write(&path, "saved text\n").unwrap();
+                let document = service
+                    .for_path(path.to_string_lossy().into_owned())
+                    .await
+                    .unwrap();
+                DocumentService::run(document.clone(), move |document| {
+                    document.attach(label.into())?;
+                    document.load(label)
+                })
+                .await
+                .unwrap();
+                service.bind(label.into(), document);
+            }
+
+            service.renderer_terminated("failed".into()).await.unwrap();
+            assert_eq!(service.ready_sessions().await.unwrap(), ["healthy"]);
+            let path = directory.path().join("failed.md");
+            assert_eq!(fs::read_to_string(&path).unwrap(), "saved text\n");
+
+            // Reload the same editing session, including intervening disk edits.
+            fs::write(&path, "external text\n").unwrap();
+            let snapshot =
+                DocumentService::run(service.for_window("failed").unwrap(), |document| {
+                    document.load("failed")
+                })
+                .await
+                .unwrap();
+            assert_eq!(snapshot.content, "external text\n");
+            let mut ready = service.ready_sessions().await.unwrap();
+            ready.sort();
+            assert_eq!(ready, ["failed", "healthy"]);
         });
     }
 

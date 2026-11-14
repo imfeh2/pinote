@@ -30,6 +30,9 @@ winget install ImFeH2.Pinote
 
 Pinote checks for updates when it starts.
 
+For optional Wayland compatibility settings, renderer-crash recovery, and a
+Hyprland shortcut example, see [Linux desktop integration](docs/linux.md).
+
 ## Features
 
 - **Markdown Notes** — Edit Markdown in lightweight WYSIWYG windows, with multiple notes open at once.

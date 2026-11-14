@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install beside pinote-launcher so desktop sessions need no custom PATH.
+script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+launcher=$script_dir/pinote-launcher
+if (( $# > 0 )); then
+    exec "$launcher" "$@"
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    printf '%s\n' 'pinote-open-last: jq is required for saved-note lookup.' >&2
+    exit 1
+fi
+
+data_home=${XDG_DATA_HOME:-}
+if [[ $data_home != /* ]]; then
+    data_home=${HOME:?HOME is required}/.local/share
+fi
+data_dir=$data_home/im.feh2.pinote
+
+# JSON is data, never shell code. NUL-delimited paths retain spaces/newlines.
+# Slurping rejects malformed/trailing JSON before emitting any candidates.
+for source in windows history; do
+    metadata=$data_dir/$source.json
+    [[ -r $metadata ]] || continue
+    while IFS= read -r -d '' note; do
+        if [[ -f $note && -r $note ]]; then
+            exec "$launcher" "$note"
+        fi
+    done < <(jq -j -s --arg source "$source" '
+        def path_ok:
+            if type != "string" then false else
+                startswith("/") and (contains("\u0000") | not) and
+                (test("^\\s|\\s$") | not) and
+                test("\\.(md|markdown)$"; "i")
+            end;
+        if length != 1 then empty else .[0] end |
+        if type != "object" then empty
+        elif .version != 1 then empty
+        elif $source == "windows" then
+            if (.windows | type) != "object" then empty else
+                .windows | to_entries |
+                map(select(.value | type == "object")) |
+                map(select(.value.updatedAt | type == "string")) |
+                map(select(.value.updatedAt | test("^[0-9]{20}$"))) |
+                sort_by([.value.updatedAt, .key]) | reverse[] | .value.notePath
+            end
+        else
+            if (.entries | type) != "object" or (.order | type) != "array" then empty else
+                . as $history |
+                ($history.order[] | select(type == "string") | $history.entries[.] |
+                    select(type == "object") | .notePath),
+                ($history.entries | to_entries |
+                    map(select(.value | type == "object")) |
+                    map(select(.value.lastOpenedAt | type == "string")) |
+                    sort_by([.value.lastOpenedAt, .key]) | reverse[] | .value.notePath)
+            end
+        end | select(path_ok) | ., "\u0000"
+    ' "$metadata" 2>/dev/null)
+done
+
+printf '%s\n' 'pinote-open-last: no readable saved Markdown note found; open a note explicitly in Pinote first.' >&2
+exit 1
