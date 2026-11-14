@@ -1,0 +1,9 @@
+- Upgraded the note editor.
+- After updating, notes saved by the previous editor can be converted to the new format once a backup is exported.
+- Added GitHub alert blocks such as `> [!NOTE]` and `> [!WARNING]`, shown with a colored title.
+- Added shortcuts to toggle task lists, switch between bullet and ordered lists, and turn a heading back into text.
+- Note and Settings errors now appear in dialogs.
+- A window that fails to render now offers Reload and Close.
+- Added a Feedback button on the About page that opens a GitHub issue with the version and system filled in.
+- Exported data now includes the notes in the note folder when it is set to another location.
+- Raised the contrast of secondary text in light and dark themes.

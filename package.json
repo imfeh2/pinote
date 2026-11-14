@@ -1,6 +1,6 @@
 {
   "name": "pinote",
-  "version": "0.6.7",
+  "version": "0.7.0",
   "private": true,
   "description": "A lightweight floating markdown scratchpad app",
   "type": "module",
