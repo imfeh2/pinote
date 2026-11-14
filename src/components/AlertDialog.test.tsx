@@ -2,7 +2,7 @@
 
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { AlertDialog } from "@/components/AlertDialog";
 
 test("focus returns to the element that was focused when the dialog opened", async () => {
@@ -31,7 +31,7 @@ test("focus returns to the element that was focused when the dialog opened", asy
   await render(true);
   expect(document.activeElement).not.toBe(editor);
   await render(false);
-  expect(document.activeElement).toBe(editor);
+  await vi.waitFor(() => expect(document.activeElement).toBe(editor));
   await act(async () => root.unmount());
   container.remove();
 });
