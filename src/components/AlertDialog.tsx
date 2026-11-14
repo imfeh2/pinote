@@ -45,6 +45,15 @@ export function AlertDialog({
           onEscapeKeyDown={(event) => {
             if (busy || !cancelLabel) event.preventDefault();
           }}
+          onOpenAutoFocus={() => {
+            const active = document.activeElement;
+            if (
+              active instanceof HTMLElement &&
+              active !== document.body &&
+              !active.closest('[role="alertdialog"]')
+            )
+              returnFocusRef.current = active;
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             returnFocusRef.current?.focus();
