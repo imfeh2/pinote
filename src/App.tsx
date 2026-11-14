@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@/components/AlertDialog";
-import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { Editor } from "@/components/Editor";
 import { WindowDragHandle } from "@/components/WindowDragHandle";
@@ -35,6 +34,7 @@ import {
 import { refreshSettingsStore } from "@/stores/settingsStore";
 import "@/styles/App.css";
 
+const ENDED_PROBLEM = {};
 const NOTE_OPACITY_MIN = 0;
 const NOTE_OPACITY_MAX = 1;
 const NOTE_WINDOW_BROUGHT_BACK_EVENT = "note-window-brought-back";
@@ -85,6 +85,7 @@ function App({
   );
   const [workingCopy] = useState(() => new WorkingCopy());
   const [dialog, setDialog] = useState<"delete" | "discard" | null>(null);
+  const [hiddenProblem, setHiddenProblem] = useState<object | null>(null);
   const [deleteResult, setDeleteResult] = useState<EndResult | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [deletionBusy, setDeletionBusy] = useState(false);
@@ -237,6 +238,12 @@ function App({
   const busy =
     deletionBusy || ["closing", "deleting", "quitting"].includes(state.phase);
   const interactionBlocked = busy || dialog !== null || state.phase !== "ready";
+  const problem =
+    state.error && state.error.kind !== "conflict"
+      ? state.error
+      : state.phase === "ended"
+        ? ENDED_PROBLEM
+        : null;
   const deleteNote = useCallback(async () => {
     const result = await workingCopy.end("delete");
     if (!result) return;
@@ -461,81 +468,6 @@ function App({
         style={noteBackgroundStyle}
       />
       <WindowDragHandle onMouseDown={startWindowDrag} />
-      {(state.error && state.error.kind !== "conflict") ||
-      state.phase === "ended" ? (
-        <div
-          className="relative z-40 max-h-[60vh] shrink-0 overflow-y-auto border-b border-border bg-background p-2 text-xs"
-          role="alert"
-        >
-          <p className="break-words">
-            {t(`errors.${state.error?.kind ?? "ended"}`)}
-          </p>
-          {state.error && "message" in state.error ? (
-            <p className="mt-1 break-words text-muted-foreground">
-              {state.error.message}
-            </p>
-          ) : null}
-          <div className="mt-2 flex flex-wrap gap-1">
-            {state.phase !== "ended" ? (
-              <Button
-                disabled={busy}
-                onClick={() => {
-                  void retry();
-                }}
-              >
-                {t("actions.retry")}
-              </Button>
-            ) : null}
-            {workingCopy.dirty && state.phase === "ready" ? (
-              <Button
-                onClick={() => {
-                  returnFocusRef.current = globalThis.document
-                    .activeElement as HTMLElement | null;
-                  setDialog("discard");
-                }}
-              >
-                {t("actions.discard")}
-              </Button>
-            ) : null}
-            <Button
-              disabled={busy}
-              onClick={() => {
-                void workingCopy.end("close");
-              }}
-            >
-              {t("actions.close")}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      {state.external ? (
-        <div
-          className="relative z-40 flex max-h-[60vh] shrink-0 flex-wrap items-center gap-2 overflow-y-auto border-b border-amber-400/50 bg-amber-300/20 px-2.5 py-1.5 text-xs text-amber-950 dark:border-amber-300/45 dark:bg-amber-200/12 dark:text-amber-100"
-          role="alert"
-        >
-          <span className="min-w-0 flex-1 break-words">
-            {t("externalChange.message")}
-          </span>
-          <Button
-            variant="ghost"
-            disabled={interactionBlocked}
-            onClick={() => {
-              void workingCopy.reloadExternal();
-            }}
-          >
-            {t("externalChange.reload")}
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={interactionBlocked}
-            onClick={() => {
-              void workingCopy.keepCurrent();
-            }}
-          >
-            {t("externalChange.ignore")}
-          </Button>
-        </div>
-      ) : null}
       <div className="pointer-events-none absolute right-3 top-3 z-30 flex items-center gap-1.5">
         {noteReadOnly ? (
           <div
@@ -577,6 +509,75 @@ function App({
             style={editorStyle}
           />
         )}
+        <AlertDialog
+          open={state.external !== null && dialog === null}
+          title={t("externalChange.message")}
+          busy={busy}
+          returnFocusRef={returnFocusRef}
+          onClose={() => {}}
+          actions={[
+            {
+              label: t("externalChange.reload"),
+              onAction: () => {
+                void workingCopy.reloadExternal();
+              },
+            },
+            {
+              label: t("externalChange.ignore"),
+              onAction: () => {
+                void workingCopy.keepCurrent();
+              },
+            },
+          ]}
+        />
+        <AlertDialog
+          open={
+            problem !== null &&
+            problem !== hiddenProblem &&
+            dialog === null &&
+            state.external === null
+          }
+          title={t(`errors.${state.error?.kind ?? "ended"}`)}
+          description={
+            state.error && "message" in state.error
+              ? state.error.message
+              : undefined
+          }
+          cancelLabel={state.content === null ? undefined : t("actions.cancel")}
+          busy={busy}
+          returnFocusRef={returnFocusRef}
+          onClose={() => {
+            if (state.phase === "ready") workingCopy.dismissError();
+            else setHiddenProblem(problem);
+          }}
+          actions={[
+            ...(state.phase !== "ended"
+              ? [
+                  {
+                    label: t("actions.retry"),
+                    onAction: () => {
+                      void retry();
+                    },
+                  },
+                ]
+              : []),
+            ...(workingCopy.dirty && state.phase === "ready"
+              ? [
+                  {
+                    label: t("actions.discard"),
+                    destructive: true,
+                    onAction: () => setDialog("discard"),
+                  },
+                ]
+              : []),
+            {
+              label: t("actions.close"),
+              onAction: () => {
+                void workingCopy.end("close");
+              },
+            },
+          ]}
+        />
         <AlertDialog
           open={dialog !== null}
           title={dialog === "delete" ? t("deletion.title") : t("discard.title")}

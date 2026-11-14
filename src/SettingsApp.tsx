@@ -7,6 +7,7 @@ import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertDialog } from "@/components/AlertDialog";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
 import { ChangelogSection } from "@/components/settings/ChangelogSection";
@@ -133,13 +134,18 @@ export function SettingsApp() {
   const { t, i18n } = useTranslation("settings");
   const { settings, updateSettings: saveSettings } = useSettings();
   const [settingsError, setSettingsError] = useState(false);
+  const settingsErrorFocusRef = useRef<HTMLElement | null>(null);
   const updateSettings = useCallback(
     (patch: SettingsPatch) => {
       setSettingsError(false);
       const operation = saveSettings(patch);
       void operation.then(
         () => setSettingsError(false),
-        () => setSettingsError(true),
+        () => {
+          settingsErrorFocusRef.current =
+            document.activeElement as HTMLElement | null;
+          setSettingsError(true);
+        },
       );
       return operation;
     },
@@ -922,14 +928,17 @@ export function SettingsApp() {
         />
 
         <main className="pinote-scrollbar min-w-0 flex-1 overflow-y-auto px-5 py-4">
-          {settingsError ? (
-            <p role="alert" className="mb-4 text-xs text-destructive">
-              {t("errors.saveSettings")}
-            </p>
-          ) : null}
           {sectionContent}
         </main>
       </div>
+
+      <AlertDialog
+        open={settingsError}
+        title={t("errors.saveSettings")}
+        cancelLabel={t("common.close")}
+        returnFocusRef={settingsErrorFocusRef}
+        onClose={() => setSettingsError(false)}
+      />
 
       {shouldShowUpdateDialog ? (
         <UpdateDialog

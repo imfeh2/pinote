@@ -311,7 +311,14 @@ test("preferences keeps menu opacity persistence and failure feedback", async ()
     contextMenuFollowNoteOpacity: !current,
   });
   expect(toggle.getAttribute("aria-checked")).toBe(String(current));
-  expect(container.textContent).toContain(settingsZh.errors.saveSettings);
+  const dialog = () => document.querySelector('[role="alertdialog"]');
+  expect(dialog()?.textContent).toContain(settingsZh.errors.saveSettings);
+  const close = Array.from(dialog()?.querySelectorAll("button") ?? []).find(
+    (button) => button.textContent === settingsZh.common.close,
+  );
+  if (!close) throw new Error("Missing close button");
+  await act(async () => close.click());
+  expect(dialog()).toBeNull();
 });
 
 test("taskbar behavior changes only after its preference is saved", async () => {

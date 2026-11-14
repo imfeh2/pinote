@@ -5,9 +5,9 @@ import { Button } from "@/components/Button";
 interface AlertDialogProps {
   open: boolean;
   title: string;
-  description: string;
+  description?: string;
   children?: ReactNode;
-  cancelLabel: string;
+  cancelLabel?: string;
   actions?: {
     label: string;
     destructive?: boolean;
@@ -40,9 +40,10 @@ export function AlertDialog({
         <AlertDialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <AlertDialogPrimitive.Content
           aria-busy={busy}
+          {...(description ? {} : { "aria-describedby": undefined })}
           className="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground shadow-xl"
           onEscapeKeyDown={(event) => {
-            if (busy) event.preventDefault();
+            if (busy || !cancelLabel) event.preventDefault();
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
@@ -52,14 +53,18 @@ export function AlertDialog({
           <AlertDialogPrimitive.Title className="shrink-0 break-words text-sm font-semibold">
             {title}
           </AlertDialogPrimitive.Title>
-          <AlertDialogPrimitive.Description className="shrink-0 break-words text-xs text-muted-foreground">
-            {description}
-          </AlertDialogPrimitive.Description>
+          {description ? (
+            <AlertDialogPrimitive.Description className="shrink-0 break-words text-xs text-muted-foreground">
+              {description}
+            </AlertDialogPrimitive.Description>
+          ) : null}
           {children}
           <div className="flex shrink-0 flex-wrap justify-end gap-2">
-            <AlertDialogPrimitive.Cancel asChild disabled={busy}>
-              <Button>{cancelLabel}</Button>
-            </AlertDialogPrimitive.Cancel>
+            {cancelLabel ? (
+              <AlertDialogPrimitive.Cancel asChild disabled={busy}>
+                <Button>{cancelLabel}</Button>
+              </AlertDialogPrimitive.Cancel>
+            ) : null}
             {actions.map(({ label, destructive, onAction }) => (
               <AlertDialogPrimitive.Action
                 key={label}

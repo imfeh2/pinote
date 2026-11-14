@@ -6,6 +6,7 @@ export default {
     loading: "Loading...",
     unknown: "Unknown",
     retry: "Retry",
+    close: "Close",
   },
   sections: {
     appearance: {

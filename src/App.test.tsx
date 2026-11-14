@@ -11,7 +11,7 @@ import {
   vi,
 } from "vitest";
 import App from "@/App";
-import { WorkingCopy } from "@/lib/workingCopy";
+import { WorkingCopy, type WorkingCopySnapshot } from "@/lib/workingCopy";
 import { DEFAULT_SETTINGS } from "@/stores/settings";
 
 const mocks = vi.hoisted(() => ({
@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   updateSettings: vi.fn(),
   refreshSettings: vi.fn(),
   cachedConfirmation: true,
+  snapshot: {} as Partial<WorkingCopySnapshot>,
 }));
 
 vi.mock("@tauri-apps/api/window", async (importOriginal) => ({
@@ -81,6 +82,7 @@ vi.mock("@/hooks/useWorkingCopy", () => ({
       external: null,
       error: null,
       reload: 0,
+      ...mocks.snapshot,
     };
   },
 }));
@@ -108,6 +110,7 @@ vi.mock("@/lib/windowApi", () => ({
 
 beforeEach(() => {
   mocks.cachedConfirmation = true;
+  mocks.snapshot = {};
   mocks.updateSettings.mockReset().mockResolvedValue(undefined);
   mocks.refreshSettings.mockReset().mockResolvedValue(DEFAULT_SETTINGS);
 });
@@ -372,5 +375,85 @@ test("a failed preference read never deletes without confirmation", async () => 
     expect(document.body.textContent).toContain(
       "deletion.preferencesUnavailable",
     );
+  });
+});
+
+test("note problems open a dialog that stays closed after cancel", async () => {
+  mocks.snapshot = { phase: "ended", error: { kind: "missing" } };
+  await withNote(async () => {
+    const dialog = () => document.querySelector('[role="alertdialog"]');
+    expect(dialog()?.textContent).toContain("errors.missing");
+    expect(() => dialogButton("actions.retry")).toThrow();
+    expect(dialogButton("actions.close").disabled).toBe(false);
+    await act(async () => dialogButton("actions.cancel").click());
+    expect(dialog()).toBeNull();
+    await act(async () => mocks.toggleFromActions?.());
+    expect(dialog()).toBeNull();
+  });
+});
+
+test("save errors offer retry and cancel clears the error", async () => {
+  mocks.snapshot = { error: { kind: "io", message: "Access denied" } };
+  await withNote(async () => {
+    expect(document.body.textContent).toContain("Access denied");
+    expect(dialogButton("actions.retry").disabled).toBe(false);
+    if (!mocks.workingCopy) throw new Error("Missing working copy");
+    const dismiss = vi.spyOn(mocks.workingCopy, "dismissError");
+    await act(async () => dialogButton("actions.cancel").click());
+    expect(dismiss).toHaveBeenCalledOnce();
+  });
+});
+
+test("problems without loaded content keep the dialog open", async () => {
+  mocks.snapshot = {
+    content: null,
+    error: { kind: "io", message: "Access denied" },
+  };
+  await withNote(async () => {
+    const dialog = () => document.querySelector('[role="alertdialog"]');
+    expect(() => dialogButton("actions.cancel")).toThrow();
+    await act(async () => {
+      dialog()?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(dialog()?.textContent).toContain("Access denied");
+    expect(dialogButton("actions.retry").disabled).toBe(false);
+  });
+});
+
+test("an external change hides other problems until it is resolved", async () => {
+  mocks.snapshot = {
+    error: { kind: "io", message: "Access denied" },
+    external: { content: "Other", version: "v2" },
+  };
+  await withNote(async () => {
+    const dialogs = document.querySelectorAll('[role="alertdialog"]');
+    expect(dialogs).toHaveLength(1);
+    expect(dialogs[0].textContent).toContain("externalChange.message");
+  });
+});
+
+test("external changes require choosing which version to keep", async () => {
+  mocks.snapshot = {
+    error: { kind: "conflict", snapshot: { content: "Other", version: "v2" } },
+    external: { content: "Other", version: "v2" },
+  };
+  await withNote(async () => {
+    const dialog = () => document.querySelector('[role="alertdialog"]');
+    expect(dialog()?.textContent).toContain("externalChange.message");
+    expect(() => dialogButton("actions.cancel")).toThrow();
+    await act(async () => {
+      dialog()?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(dialog()).not.toBeNull();
+    if (!mocks.workingCopy) throw new Error("Missing working copy");
+    const keep = vi
+      .spyOn(mocks.workingCopy, "keepCurrent")
+      .mockResolvedValue(undefined);
+    await act(async () => dialogButton("externalChange.ignore").click());
+    expect(keep).toHaveBeenCalledOnce();
   });
 });

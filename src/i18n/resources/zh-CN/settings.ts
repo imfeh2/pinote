@@ -6,6 +6,7 @@ export default {
     loading: "正在加载…",
     unknown: "未知",
     retry: "重试",
+    close: "关闭",
   },
   sections: {
     appearance: { label: "外观", description: "语言、主题和视觉样式。" },
