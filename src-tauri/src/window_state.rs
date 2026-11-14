@@ -660,98 +660,6 @@ pub fn upsert_window_state(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_state(visibility: WindowVisibility) -> CachedWindowState {
-        CachedWindowState {
-            window_id: String::from("note-test"),
-            note_id: String::from("test-note"),
-            note_path: String::from("C:\\notes\\test.md"),
-            visibility,
-            always_on_top: false,
-            read_only: false,
-            opacity: 1.0,
-            scroll_top: 0.0,
-            bounds: WindowBounds {
-                x: 10,
-                y: 20,
-                width: 300.0,
-                height: 400.0,
-            },
-            updated_at: String::new(),
-        }
-    }
-
-    #[test]
-    fn invalid_entries_preserve_the_original_cache() {
-        let directory = crate::storage::test_directory();
-        let path = directory.path().join("windows.json");
-        let original = br#"{"version":1,"windows":{"entry":{"windowId":"note-test"}}}"#;
-        fs::write(&path, original).unwrap();
-        let store = WindowStateStore::new(path.clone());
-        assert!(store.read().is_err());
-        assert!(store.remove_windows(&["note-test".into()]).is_err());
-        assert_eq!(fs::read(path).unwrap(), original);
-    }
-
-    #[test]
-    fn implicit_visible_upsert_preserves_existing_hidden_visibility() {
-        let mut cache = build_empty_cache();
-        let cache_key = build_note_cache_key("C:\\notes\\test.md");
-
-        apply_upsert_window_state(
-            &mut cache,
-            test_state(WindowVisibility::Hidden),
-            &UpdateWindowStateOptions {
-                push_hidden_to_top: Some(true),
-                preserve_hidden_visibility: None,
-            },
-            "1",
-        );
-        apply_upsert_window_state(
-            &mut cache,
-            test_state(WindowVisibility::Visible),
-            &UpdateWindowStateOptions {
-                push_hidden_to_top: None,
-                preserve_hidden_visibility: Some(true),
-            },
-            "2",
-        );
-
-        let state = cache.windows.get(&cache_key).expect("state should exist");
-        assert_eq!(state.visibility, WindowVisibility::Hidden);
-        assert_eq!(cache.hidden_stack, vec![cache_key]);
-    }
-
-    #[test]
-    fn explicit_visible_upsert_clears_existing_hidden_visibility() {
-        let mut cache = build_empty_cache();
-        let cache_key = build_note_cache_key("C:\\notes\\test.md");
-
-        apply_upsert_window_state(
-            &mut cache,
-            test_state(WindowVisibility::Hidden),
-            &UpdateWindowStateOptions {
-                push_hidden_to_top: Some(true),
-                preserve_hidden_visibility: None,
-            },
-            "1",
-        );
-        apply_upsert_window_state(
-            &mut cache,
-            test_state(WindowVisibility::Visible),
-            &UpdateWindowStateOptions::default(),
-            "2",
-        );
-
-        let state = cache.windows.get(&cache_key).expect("state should exist");
-        assert_eq!(state.visibility, WindowVisibility::Visible);
-        assert!(cache.hidden_stack.is_empty());
-    }
-}
-
 pub fn set_window_bounds(
     app: &tauri::AppHandle,
     window_id: &str,
@@ -843,4 +751,96 @@ pub fn set_window_visibility_by_labels(
         }
         cache.updated_at = now;
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_state(visibility: WindowVisibility) -> CachedWindowState {
+        CachedWindowState {
+            window_id: String::from("note-test"),
+            note_id: String::from("test-note"),
+            note_path: String::from("C:\\notes\\test.md"),
+            visibility,
+            always_on_top: false,
+            read_only: false,
+            opacity: 1.0,
+            scroll_top: 0.0,
+            bounds: WindowBounds {
+                x: 10,
+                y: 20,
+                width: 300.0,
+                height: 400.0,
+            },
+            updated_at: String::new(),
+        }
+    }
+
+    #[test]
+    fn invalid_entries_preserve_the_original_cache() {
+        let directory = crate::storage::test_directory();
+        let path = directory.path().join("windows.json");
+        let original = br#"{"version":1,"windows":{"entry":{"windowId":"note-test"}}}"#;
+        fs::write(&path, original).unwrap();
+        let store = WindowStateStore::new(path.clone());
+        assert!(store.read().is_err());
+        assert!(store.remove_windows(&["note-test".into()]).is_err());
+        assert_eq!(fs::read(path).unwrap(), original);
+    }
+
+    #[test]
+    fn implicit_visible_upsert_preserves_existing_hidden_visibility() {
+        let mut cache = build_empty_cache();
+        let cache_key = build_note_cache_key("C:\\notes\\test.md");
+
+        apply_upsert_window_state(
+            &mut cache,
+            test_state(WindowVisibility::Hidden),
+            &UpdateWindowStateOptions {
+                push_hidden_to_top: Some(true),
+                preserve_hidden_visibility: None,
+            },
+            "1",
+        );
+        apply_upsert_window_state(
+            &mut cache,
+            test_state(WindowVisibility::Visible),
+            &UpdateWindowStateOptions {
+                push_hidden_to_top: None,
+                preserve_hidden_visibility: Some(true),
+            },
+            "2",
+        );
+
+        let state = cache.windows.get(&cache_key).expect("state should exist");
+        assert_eq!(state.visibility, WindowVisibility::Hidden);
+        assert_eq!(cache.hidden_stack, vec![cache_key]);
+    }
+
+    #[test]
+    fn explicit_visible_upsert_clears_existing_hidden_visibility() {
+        let mut cache = build_empty_cache();
+        let cache_key = build_note_cache_key("C:\\notes\\test.md");
+
+        apply_upsert_window_state(
+            &mut cache,
+            test_state(WindowVisibility::Hidden),
+            &UpdateWindowStateOptions {
+                push_hidden_to_top: Some(true),
+                preserve_hidden_visibility: None,
+            },
+            "1",
+        );
+        apply_upsert_window_state(
+            &mut cache,
+            test_state(WindowVisibility::Visible),
+            &UpdateWindowStateOptions::default(),
+            "2",
+        );
+
+        let state = cache.windows.get(&cache_key).expect("state should exist");
+        assert_eq!(state.visibility, WindowVisibility::Visible);
+        assert!(cache.hidden_stack.is_empty());
+    }
 }
