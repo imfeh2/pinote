@@ -309,6 +309,19 @@ test("heading shortcuts turn a heading of the same level back into text", () => 
   expect(onChange).toHaveBeenLastCalledWith("Title\n");
 });
 
+test("the task list shortcut switches lines to and from tasks", () => {
+  const onChange = vi.fn();
+  const view = createView("a\n- [x] b\n", onChange);
+  view.dispatch({ selection: { anchor: 0, head: 9 } });
+  expect(press(view, "9", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith("- [ ] a\n- [x] b\n");
+  expect(press(view, "8", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith("- a\n- b\n");
+  expect(press(view, "9", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(press(view, "9", { ctrlKey: true, altKey: true })).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith("a\nb\n");
+});
+
 test("images and links that span lines stay as source text", () => {
   const view = createView(
     "![first\nsecond](a.png)\n\n[text](\nhttps://example.com)\n",

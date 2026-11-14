@@ -120,6 +120,12 @@ const toggleBulletList = toggleLinePrefix(
   () => "- ",
   LIST_MARKER,
 );
+const TASK_MARKER = /^\s*[-*+][ \t]+\[([ xX])\][ \t]+/;
+const toggleTaskList = toggleLinePrefix(
+  TASK_MARKER,
+  (_index, text) => `- [${TASK_MARKER.exec(text)?.[1] ?? " "}] `,
+  LIST_MARKER,
+);
 const toggleOrderedList = toggleLinePrefix(
   /^\s*\d+[.)][ \t]+/,
   (index) => `${index + 1}. `,
@@ -183,6 +189,7 @@ export const formattingKeymap: readonly KeyBinding[] = [
   { key: "Mod-Shift-b", run: toggleBlockquote },
   { key: "Mod-Alt-7", run: toggleOrderedList },
   { key: "Mod-Alt-8", run: toggleBulletList },
+  { key: "Mod-Alt-9", run: toggleTaskList },
   { key: "Mod-Alt-c", run: wrapCodeBlock },
   { key: "Tab", run: indentTab, shift: indentLess },
 ];
