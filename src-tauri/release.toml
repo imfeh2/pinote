@@ -1,6 +1,11 @@
 allow-branch = ["main"]
 
 pre-release-commit-message = "chore: release {{version}}"
+pre-release-hook = [
+  "sh",
+  "-c",
+  'test "$DRY_RUN" = true || git -C "$WORKSPACE_ROOT/.." mv changelog/unreleased "changelog/$NEW_VERSION"',
+]
 pre-release-replacements = [
   { file = "tauri.conf.json", search = '"version": "[^"]+"', replace = '"version": "{{version}}"', exactly = 1 },
   { file = "../package.json", search = '"version": "[^"]+"', replace = '"version": "{{version}}"', exactly = 1 },

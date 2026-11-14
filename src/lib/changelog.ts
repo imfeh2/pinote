@@ -20,6 +20,7 @@ for (const [path, content] of Object.entries(files)) {
   const match = path.match(/\/changelog\/([^/]+)\/([^/]+)\.md$/);
   if (!match) throw new Error(`Unexpected changelog file: ${path}`);
   const [, version, locale] = match;
+  if (version === "unreleased") continue;
   if (!RELEASE_LOCALES.includes(locale as ReleaseLocale)) {
     throw new Error(`Unknown changelog language: ${path}`);
   }

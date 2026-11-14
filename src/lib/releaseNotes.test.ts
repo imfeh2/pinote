@@ -11,6 +11,7 @@ test("the changelog covers the current version with every language", () => {
   expect(changelog.map((entry) => entry.version)).toContain(
     packageJson.version,
   );
+  expect(changelog.map((entry) => entry.version)).not.toContain("unreleased");
   expect(changelog[0].version).toBe(
     [...changelog.map((entry) => entry.version)].sort((a, b) =>
       b.localeCompare(a, "en", { numeric: true }),

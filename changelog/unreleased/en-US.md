@@ -1,0 +1,1 @@
+- Raised the contrast of secondary text in light and dark themes.
