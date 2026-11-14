@@ -1,9 +1,7 @@
 // @vitest-environment happy-dom
 
-import { Schema } from "@milkdown/kit/prose/model";
-import { EditorState } from "@milkdown/kit/prose/state";
-import { EditorView } from "@milkdown/kit/prose/view";
-import { act, type ReactNode } from "react";
+import { EditorView } from "@codemirror/view";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import ContextMenuApp from "@/ContextMenuApp";
@@ -19,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   setSize: vi.fn(),
   readTextFile: vi.fn<() => Promise<string>>(),
   menuSync: null as ((context: NoteContextMenuContext) => void) | null,
-  view: null as EditorView | null,
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -59,26 +56,6 @@ vi.mock("@/lib/contextMenuApi", () => ({
     };
   },
 }));
-vi.mock("@milkdown/react", () => {
-  const editor = {
-    action: (callback: (ctx: { get: () => EditorView | null }) => void) =>
-      callback({ get: () => mocks.view }),
-  };
-  const getInstance = () => editor;
-  return {
-    useEditor: () => {},
-    useInstance: () => [false, getInstance],
-    MilkdownProvider: ({ children }: { children: ReactNode }) => children,
-    Milkdown: () => (
-      <div
-        ref={(node) => {
-          if (node && mocks.view) node.append(mocks.view.dom);
-        }}
-      />
-    ),
-  };
-});
-
 let container: HTMLDivElement;
 let root: Root;
 
@@ -102,8 +79,6 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(async () => root.unmount());
-  mocks.view?.destroy();
-  mocks.view = null;
   container.remove();
   vi.useRealTimers();
 });
@@ -162,37 +137,32 @@ test("window mover preserves pointer dragging and serializes keyboard moves", as
   expect(handle.getAttribute("aria-pressed")).toBe("false");
 });
 
-test("blank editor space adds one paragraph from keyboard and preserves pointer distance and read-only", async () => {
-  const schema = new Schema({
-    nodes: {
-      doc: { content: "paragraph+" },
-      paragraph: { content: "text*", toDOM: () => ["p", 0] },
-      text: {},
-    },
-  });
-  const view = new EditorView(document.createElement("div"), {
-    state: EditorState.create({ schema }),
-  });
-  mocks.view = view;
-  view.dom.style.lineHeight = "20px";
-  vi.spyOn(view.dom, "getBoundingClientRect").mockReturnValue(
-    new DOMRect(0, 0, 100, 100),
-  );
-  const focus = vi.spyOn(view, "focus").mockImplementation(() => {});
+test("blank editor space adds blank lines from keyboard and preserves pointer distance and read-only", async () => {
   const onChange = vi.fn();
   await act(async () =>
     root.render(
       <Editor defaultValue="" initialScrollTop={40} onChange={onChange} />,
     ),
   );
+  const editorElement = container.querySelector<HTMLElement>(".cm-editor");
+  if (!editorElement) throw new Error("Missing editor");
+  const view = EditorView.findFromDOM(editorElement);
+  if (!view) throw new Error("Missing editor view");
+  vi.spyOn(view.contentDOM, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(0, 0, 100, 100),
+  );
+  vi.spyOn(view, "defaultLineHeight", "get").mockReturnValue(20);
+  const focus = vi.spyOn(view, "focus").mockImplementation(() => {});
   await act(async () => button("Add paragraph").click());
-  expect(view.state.doc.childCount).toBe(2);
+  expect(view.state.doc.toString()).toBe("\n");
   await act(async () =>
     button("Add paragraph").dispatchEvent(
       new MouseEvent("click", { detail: 1, clientY: 160, bubbles: true }),
     ),
   );
-  expect(view.state.doc.childCount).toBe(5);
+  expect(view.state.doc.toString()).toBe("\n\n\n\n");
+  expect(view.state.selection.main.head).toBe(4);
+  expect(onChange).toHaveBeenLastCalledWith("\n\n\n\n");
   expect(focus).toHaveBeenCalledTimes(2);
   await act(async () =>
     root.render(
@@ -206,9 +176,10 @@ test("blank editor space adds one paragraph from keyboard and preserves pointer 
   );
   await act(async () => button("Add paragraph").click());
   expect(button("Add paragraph").disabled).toBe(true);
-  expect(view.state.doc.childCount).toBe(5);
-  expect(container.querySelector(".milkdown-editor")?.scrollTop).toBe(80);
-  const scroller = container.querySelector(".milkdown-editor");
+  expect(view.state.readOnly).toBe(true);
+  expect(view.state.doc.toString()).toBe("\n\n\n\n");
+  expect(container.querySelector(".note-editor")?.scrollTop).toBe(80);
+  const scroller = container.querySelector(".note-editor");
   if (!scroller) throw new Error("Missing editor scroller");
   scroller.scrollTop = 200;
   await act(async () =>
@@ -221,7 +192,8 @@ test("blank editor space adds one paragraph from keyboard and preserves pointer 
       />,
     ),
   );
-  expect(container.querySelector(".milkdown-editor")?.scrollTop).toBe(80);
+  expect(container.querySelector(".note-editor")?.scrollTop).toBe(80);
+  expect(container.querySelector(".cm-content")?.textContent).toBe("Reloaded");
 });
 
 test("history preview opens on focus, closes with Escape, and ignores a cancelled read", async () => {

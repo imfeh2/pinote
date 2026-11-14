@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@/components/AlertDialog";
 import { Checkbox } from "@/components/Checkbox";
-import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { MarkdownPreview } from "@/components/Editor";
 import { useHistorySelection } from "@/hooks/useHistorySelection";
 import {
   deleteHistoryNotes,
@@ -22,21 +22,14 @@ import {
   removeHistoryRecords,
 } from "@/lib/noteHistory";
 import { cn } from "@/lib/utils";
-import type { EditorFontFamily } from "@/stores/settings";
+import {
+  type EditorFontFamily,
+  resolveEditorFontFamily,
+} from "@/stores/settings";
 
 const PREVIEW_DELAY_MS = 300;
 const PREVIEW_HIDE_DELAY_MS = 200;
 const HISTORY_BATCH_SIZE = 40;
-
-function resolveEditorFontFamily(value: EditorFontFamily) {
-  if (value === "serif") {
-    return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
-  }
-  if (value === "mono") {
-    return '"JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-  }
-  return "system-ui, -apple-system, sans-serif";
-}
 
 interface PreviewState {
   x: number;
@@ -482,7 +475,7 @@ export function HistorySection({
                 </div>
               </div>
               <div
-                className="milkdown-editor pinote-scrollbar max-h-48 overflow-y-auto px-2.5 py-2"
+                className="note-editor pinote-scrollbar max-h-48 overflow-y-auto px-2.5 py-2"
                 style={
                   {
                     "--editor-font-family":

@@ -425,8 +425,8 @@ test("the changelog page lists every version and marks the current one", async (
   expect(current?.textContent).toContain(settingsZh.changelog.current);
   const notes = changelog.find((entry) => entry.version === "0.6.3")?.notes;
   await vi.waitFor(() =>
-    expect(current?.querySelector("li")?.textContent).toBe(
-      notes?.["zh-CN"].split("\n")[0].slice(2),
+    expect(current?.querySelector(".cm-line")?.textContent).toBe(
+      `• ${notes?.["zh-CN"].split("\n")[0].slice(2)}`,
     ),
   );
 });

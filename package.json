@@ -37,10 +37,16 @@
     "prepare": "lefthook install"
   },
   "dependencies": {
-    "@milkdown/crepe": "^7.18.0",
-    "@milkdown/kit": "^7.18.0",
-    "@milkdown/react": "^7.18.0",
-    "@milkdown/theme-nord": "^7.18.0",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@joplin/turndown-plugin-gfm": "^1.0.68",
+    "@lezer/common": "^1.5.5",
+    "@lezer/highlight": "^1.2.5",
+    "@lezer/markdown": "^1.8.1",
     "@radix-ui/react-alert-dialog": "^1.2.1",
     "@radix-ui/react-checkbox": "^1.4.1",
     "@tailwindcss/vite": "^4.1.18",
@@ -66,8 +72,8 @@
     "remark-parse": "^11.0.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "unified": "^11.0.5",
-    "unist-util-visit": "^5.2.0"
+    "turndown": "^7.2.5",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
@@ -77,10 +83,10 @@
     "@types/mdast": "^4.0.4",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "^4.6.0",
     "happy-dom": "20.14.0",
     "lefthook": "2.1.12",
-    "mdast-util-to-markdown": "^2.2.3",
     "prettier": "3.9.6",
     "tombi": "1.5.2",
     "typescript": "~5.8.3",

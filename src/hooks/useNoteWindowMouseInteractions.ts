@@ -212,7 +212,7 @@ export function useNoteWindowMouseInteractions(
       if (Date.now() > suppressEditorScrollUntilRef.current) return;
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
-      if (!target.classList.contains("milkdown-editor")) return;
+      if (!target.classList.contains("note-editor")) return;
       const lockedTop = suppressEditorScrollTopRef.current;
       if (Math.abs(target.scrollTop - lockedTop) < 0.5) return;
       target.scrollTop = lockedTop;
@@ -570,8 +570,8 @@ export function useNoteWindowMouseInteractions(
       const consumeWheelEvent = () => {
         const editor =
           event.target instanceof HTMLElement
-            ? event.target.closest<HTMLElement>(".milkdown-editor")
-            : document.querySelector<HTMLElement>(".milkdown-editor");
+            ? event.target.closest<HTMLElement>(".note-editor")
+            : document.querySelector<HTMLElement>(".note-editor");
         suppressEditorScrollTopRef.current =
           editor?.scrollTop ?? noteScrollTopRef.current;
         suppressEditorScrollUntilRef.current = Date.now() + 140;

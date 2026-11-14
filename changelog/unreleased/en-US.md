@@ -1,2 +1,6 @@
+- Export your data before updating: Settings → About → Export data.
+- Replaced the note editor. Markdown formatting now shows as you type, and the syntax appears only where the cursor is.
+- Added shortcuts that switch between bullet and ordered lists.
+- Clicking a table cell now edits the table source.
 - Added a Feedback button on the About page that opens a GitHub issue with the version and system filled in.
 - Raised the contrast of secondary text in light and dark themes.

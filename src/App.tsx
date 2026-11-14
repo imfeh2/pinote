@@ -28,7 +28,10 @@ import {
   type RuntimePlatform,
 } from "@/lib/windowApi";
 import { type EndResult, WorkingCopy } from "@/lib/workingCopy";
-import type { WindowsGlassEffect } from "@/stores/settings";
+import {
+  resolveEditorFontFamily,
+  type WindowsGlassEffect,
+} from "@/stores/settings";
 import { refreshSettingsStore } from "@/stores/settingsStore";
 import "@/styles/App.css";
 
@@ -37,16 +40,6 @@ const NOTE_OPACITY_MAX = 1;
 const NOTE_WINDOW_BROUGHT_BACK_EVENT = "note-window-brought-back";
 const NOTE_WINDOW_BROUGHT_BACK_FEEDBACK_MS = 260;
 const NOTE_WINDOW_RECOVERY_DELAY_MS = 120;
-
-function resolveEditorFontFamily(value: "system" | "serif" | "mono") {
-  if (value === "serif") {
-    return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
-  }
-  if (value === "mono") {
-    return '"JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-  }
-  return "system-ui, -apple-system, sans-serif";
-}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);

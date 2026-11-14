@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { MarkdownPreview } from "@/components/Editor";
 import { normalizeAppLocale } from "@/i18n/locale";
 import { changelog } from "@/lib/changelog";
 
@@ -29,7 +29,7 @@ export function ChangelogSection({
             ) : null}
           </h2>
           <div
-            className="milkdown-editor text-muted-foreground"
+            className="note-editor text-muted-foreground"
             style={
               {
                 "--editor-font-size": "12px",

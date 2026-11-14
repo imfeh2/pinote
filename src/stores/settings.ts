@@ -47,3 +47,13 @@ export interface SettingsSnapshot {
 }
 
 export const DEFAULT_SETTINGS = defaults as Settings;
+
+export function resolveEditorFontFamily(value: EditorFontFamily) {
+  if (value === "serif") {
+    return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
+  }
+  if (value === "mono") {
+    return '"JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  }
+  return "system-ui, -apple-system, sans-serif";
+}

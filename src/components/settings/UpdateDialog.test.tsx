@@ -7,7 +7,6 @@ import { I18nextProvider } from "react-i18next";
 import { afterEach, beforeAll, expect, test, vi } from "vitest";
 import { UpdateDialog } from "@/components/settings/UpdateDialog";
 import { initializeI18n } from "@/i18n";
-import noteZh from "@/i18n/resources/zh-CN/note";
 import settingsZh from "@/i18n/resources/zh-CN/settings";
 import { formatReleaseBody } from "@/lib/releaseNotes";
 import type { UpdateSnapshot } from "@/lib/updater";
@@ -71,13 +70,11 @@ test("the update dialog shows the new version's notes in the interface language"
   });
   await vi.waitFor(() =>
     expect(
-      Array.from(container.querySelectorAll("li"), (item) => item.textContent),
-    ).toEqual(["中文改动"]),
-  );
-  await vi.waitFor(() =>
-    expect(container.querySelector(".pinote-alert-warning")?.textContent).toBe(
-      `${noteZh.alerts.warning}请先备份。`,
-    ),
+      Array.from(
+        container.querySelectorAll(".cm-line"),
+        (line) => line.textContent,
+      ),
+    ).toEqual(expect.arrayContaining(["请先备份。", "• 中文改动"])),
   );
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });

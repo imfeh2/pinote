@@ -1,7 +1,7 @@
 import { Download, RefreshCw, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { MarkdownPreview } from "@/components/Editor";
 import { normalizeAppLocale } from "@/i18n/locale";
 import { releaseNotesFor } from "@/lib/releaseNotes";
 import type { UpdateSnapshot } from "@/lib/updater";
@@ -83,7 +83,7 @@ export function UpdateDialog({
 
         {notes ? (
           <div
-            className="milkdown-editor pinote-scrollbar mb-3 max-h-40 text-foreground"
+            className="note-editor pinote-scrollbar mb-3 max-h-40 text-foreground"
             style={
               {
                 "--editor-font-size": "12px",

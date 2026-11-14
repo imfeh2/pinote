@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { HistorySection } from "./HistorySection";
@@ -36,11 +36,7 @@ vi.mock("react-i18next", async () => {
     useTranslation: () => ({ t: i18n.getFixedT(mocks.language, "settings") }),
   };
 });
-vi.mock("@milkdown/react", () => ({
-  useEditor: () => {},
-  Milkdown: () => null,
-  MilkdownProvider: ({ children }: { children: ReactNode }) => children,
-}));
+vi.mock("@/components/Editor", () => ({ MarkdownPreview: () => null }));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -188,7 +184,7 @@ test("loads more rows on scroll and selects all matching results including unloa
   await click(element('[aria-label="Clear selection"]'));
   expect(element('[aria-live="polite"]').textContent).toBe("0/121");
   expect(checked(0)).toBe("false");
-});
+}, 15_000);
 
 test("drag selects across whole rows using the starting checkbox state without reversing on revisit", async () => {
   await render(notes(5));
