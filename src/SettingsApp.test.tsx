@@ -139,11 +139,16 @@ test("about sections retain heading weights and place actions in the same row", 
     expect(heading.classList.contains("font-medium")).toBe(true);
     expect(heading.classList.contains("text-muted-foreground")).toBe(true);
   }
-  const actions = ["导出数据", "保存报告", "Pinote"];
+  const actions = [["导出数据"], ["保存报告"], ["反馈", "Pinote"]];
   for (const [index, heading] of headings.slice(1).entries()) {
     const row = heading.parentElement;
     expect(row?.classList.contains("justify-between")).toBe(true);
-    expect(row?.querySelector("button")?.textContent).toBe(actions[index]);
+    expect(
+      Array.from(
+        row?.querySelectorAll("button") ?? [],
+        (button) => button.textContent,
+      ),
+    ).toEqual(actions[index]);
   }
   expect(container.textContent).not.toContain("报告可能包含");
   expect(container.textContent).toContain("https://github.com/imfeh2/pinote");

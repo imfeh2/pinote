@@ -185,6 +185,7 @@ export default {
       saving: "正在保存…",
     },
     project: "项目",
+    feedback: "反馈",
   },
   updateStatus: {
     idle: "尚未检查。",

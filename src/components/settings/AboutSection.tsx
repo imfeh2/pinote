@@ -1,4 +1,4 @@
-import { Download, Github } from "lucide-react";
+import { Download, Github, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/Button";
 import type { UpdateSnapshot } from "@/lib/updater";
@@ -30,6 +30,7 @@ interface AboutSectionProps {
   onDownloadUpdate: () => Promise<void>;
   onInstallUpdate: () => Promise<void>;
   onOpenRepository: () => Promise<void>;
+  onOpenFeedback: () => Promise<void>;
   onSaveDiagnosticReport: () => Promise<void>;
 }
 
@@ -58,6 +59,7 @@ export function AboutSection({
   onDownloadUpdate,
   onInstallUpdate,
   onOpenRepository,
+  onOpenFeedback,
   onSaveDiagnosticReport,
 }: AboutSectionProps) {
   const { t } = useTranslation("settings");
@@ -249,13 +251,22 @@ export function AboutSection({
           <h2 className="text-xs font-medium text-muted-foreground">
             {t("about.project")}
           </h2>
-          <Button
-            onClick={() => void onOpenRepository()}
-            className="inline-flex items-center gap-2 bg-background"
-          >
-            <Github size={14} aria-hidden="true" />
-            <span>Pinote</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => void onOpenFeedback()}
+              className="inline-flex items-center gap-2 bg-background"
+            >
+              <MessageSquare size={14} aria-hidden="true" />
+              <span>{t("about.feedback")}</span>
+            </Button>
+            <Button
+              onClick={() => void onOpenRepository()}
+              className="inline-flex items-center gap-2 bg-background"
+            >
+              <Github size={14} aria-hidden="true" />
+              <span>Pinote</span>
+            </Button>
+          </div>
         </div>
         <div className="break-all text-[11px] text-muted-foreground">
           {repositoryUrl}

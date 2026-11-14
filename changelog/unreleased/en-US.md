@@ -1,1 +1,2 @@
+- Added a Feedback button on the About page that opens a GitHub issue with the version and system filled in.
 - Raised the contrast of secondary text in light and dark themes.

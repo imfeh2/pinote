@@ -28,6 +28,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
 import { exportAppData } from "@/lib/dataExport";
 import { saveDiagnosticReport } from "@/lib/diagnostics";
+import { feedbackUrl } from "@/lib/feedback";
 import { logError } from "@/lib/logger";
 import {
   type NoteHistorySearchResult,
@@ -468,6 +469,15 @@ export function SettingsApp() {
     }
   }, [t]);
 
+  const handleOpenFeedback = useCallback(async () => {
+    try {
+      await openUrl(feedbackUrl(REPOSITORY_URL, appVersion ?? "unknown"));
+      setAboutError(null);
+    } catch (error) {
+      setAboutError(getErrorMessage(error, t));
+    }
+  }, [appVersion, t]);
+
   const handleExportData = useCallback(async () => {
     if (dataExportPending.current) return;
     dataExportPending.current = true;
@@ -894,6 +904,7 @@ export function SettingsApp() {
         onDownloadUpdate={handleDownloadUpdate}
         onInstallUpdate={handleInstallUpdate}
         onOpenRepository={handleOpenRepository}
+        onOpenFeedback={handleOpenFeedback}
         onSaveDiagnosticReport={handleSaveDiagnosticReport}
       />
     );

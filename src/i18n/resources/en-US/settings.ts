@@ -224,6 +224,7 @@ export default {
       saving: "Saving...",
     },
     project: "Project",
+    feedback: "Feedback",
   },
   updateStatus: {
     idle: "Not checked yet.",
