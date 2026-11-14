@@ -1,5 +1,6 @@
 - Export your data before updating: Settings → About → Export data.
 - Replaced the note editor. Markdown formatting now shows as you type, and the syntax appears only where the cursor is.
+- After updating, notes saved by the previous editor can be converted to the new format after exporting a backup.
 - Added GitHub alert blocks such as `> [!NOTE]` and `> [!WARNING]`, shown with a colored title.
 - Added shortcuts that toggle task lists, switch between bullet and ordered lists, and turn a heading back into text.
 - Clicking a table cell now edits the table source.

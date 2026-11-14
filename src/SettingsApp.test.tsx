@@ -12,6 +12,7 @@ import { DEFAULT_SETTINGS, type Settings } from "@/stores/settings";
 
 const mocks = vi.hoisted(() => ({
   settings: {} as Settings,
+  updateState: {} as Record<string, unknown>,
   update: vi.fn(),
   enable: vi.fn(),
   disable: vi.fn(),
@@ -22,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   chooseDirectory: vi.fn(),
   openPath: vi.fn(),
   bringNotesBack: vi.fn(),
+  legacyNoteCount: vi.fn(),
+  convertLegacyNotes: vi.fn(),
+  finishLegacyNotes: vi.fn(),
 }));
 vi.mock("@/hooks/useSettings", () => ({
   useSettings: () => ({
@@ -39,7 +43,14 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 vi.mock("@/lib/logger", () => ({ logError: vi.fn(), logInfo: vi.fn() }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "0.6.3" }));
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ listen: async () => () => {} }),
+  getCurrentWindow: () => ({
+    listen: async () => () => {},
+  }),
+}));
+vi.mock("@/lib/legacyNotes", () => ({
+  getLegacyNoteCount: mocks.legacyNoteCount,
+  convertLegacyNotes: mocks.convertLegacyNotes,
+  finishLegacyNotes: mocks.finishLegacyNotes,
 }));
 vi.mock("@tauri-apps/plugin-autostart", () => ({
   isEnabled: async () => false,
@@ -65,7 +76,7 @@ vi.mock("@/lib/windowApi", () => ({
   }),
 }));
 vi.mock("@/lib/updater", () => ({
-  getUpdateState: () => ({ state: "idle", available: false }),
+  getUpdateState: () => mocks.updateState,
   subscribeUpdateState: () => () => {},
   checkForUpdates: async () => ({}),
 }));
@@ -83,6 +94,7 @@ const render = () =>
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   mocks.settings = { ...DEFAULT_SETTINGS };
+  mocks.updateState = { state: "idle", available: false };
   mocks.update.mockReset().mockResolvedValue(undefined);
   mocks.enable.mockReset().mockResolvedValue(undefined);
   mocks.disable.mockReset().mockResolvedValue(undefined);
@@ -93,6 +105,9 @@ beforeEach(async () => {
   mocks.chooseDirectory.mockReset().mockResolvedValue(null);
   mocks.openPath.mockReset().mockResolvedValue(undefined);
   mocks.bringNotesBack.mockReset().mockResolvedValue(2);
+  mocks.legacyNoteCount.mockReset().mockResolvedValue(0);
+  mocks.convertLegacyNotes.mockReset().mockResolvedValue(0);
+  mocks.finishLegacyNotes.mockReset().mockResolvedValue(undefined);
   i18n = createInstance();
   await i18n.init({
     lng: "zh-CN",
@@ -436,4 +451,127 @@ test("the changelog page lists every version and marks the current one", async (
       `• ${notes?.["zh-CN"].split("\n")[0].slice(2)}`,
     ),
   );
+});
+
+async function openLegacyNotesDialog() {
+  await act(async () => root.unmount());
+  mocks.legacyNoteCount.mockResolvedValue(3);
+  root = createRoot(container);
+  await act(async () => render());
+  const dialog = () => document.querySelector('[role="alertdialog"]');
+  const button = (label: string) => {
+    const element = Array.from(
+      dialog()?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+    ).find((item) => item.textContent === label);
+    if (!element) throw new Error(`Missing button: ${label}`);
+    return element;
+  };
+  const labels = () =>
+    Array.from(
+      dialog()?.querySelectorAll("button") ?? [],
+      (item) => item.textContent,
+    );
+  return { dialog, button, labels };
+}
+
+test("notes from the previous editor can be converted only after an export", async () => {
+  expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  const { dialog, button, labels } = await openLegacyNotesDialog();
+  expect(dialog()?.textContent).toContain(
+    settingsZh.legacyNotes.description.replace("{{count}}", "3"),
+  );
+  expect(labels()).toEqual([
+    settingsZh.legacyNotes.skip,
+    settingsZh.legacyNotes.export,
+    settingsZh.legacyNotes.convert,
+  ]);
+  expect(button(settingsZh.legacyNotes.convert).disabled).toBe(true);
+  await act(async () => button(settingsZh.legacyNotes.export).click());
+  expect(mocks.dataExport).toHaveBeenCalledTimes(1);
+  expect(button(settingsZh.legacyNotes.convert).disabled).toBe(true);
+  mocks.dataExport.mockResolvedValueOnce({
+    destinationPath: "D:\\backup\\pinote.zip",
+    fileCount: 4,
+  });
+  await act(async () => button(settingsZh.legacyNotes.export).click());
+  expect(dialog()?.querySelector('[role="status"]')?.textContent).toBe(
+    "已导出至 D:\\backup\\pinote.zip",
+  );
+  expect(button(settingsZh.legacyNotes.convert).disabled).toBe(false);
+  mocks.convertLegacyNotes.mockRejectedValueOnce(new Error("disk full"));
+  await act(async () => button(settingsZh.legacyNotes.convert).click());
+  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toBe(
+    settingsZh.legacyNotes.failed,
+  );
+  await act(async () => button(settingsZh.legacyNotes.convert).click());
+  expect(mocks.convertLegacyNotes).toHaveBeenCalledTimes(2);
+  expect(dialog()?.textContent).toContain(settingsZh.legacyNotes.converted);
+  expect(dialog()?.querySelector('[role="alert"]')).toBeNull();
+  expect(labels()).toEqual([settingsZh.legacyNotes.done]);
+  await act(async () => button(settingsZh.legacyNotes.done).click());
+  expect(mocks.finishLegacyNotes).not.toHaveBeenCalled();
+  expect(dialog()).toBeNull();
+});
+
+test("notes that fail to convert can be retried or left as they are", async () => {
+  const { dialog, button, labels } = await openLegacyNotesDialog();
+  mocks.dataExport.mockResolvedValueOnce({
+    destinationPath: "D:\\backup\\pinote.zip",
+    fileCount: 4,
+  });
+  await act(async () => button(settingsZh.legacyNotes.export).click());
+  mocks.convertLegacyNotes.mockResolvedValueOnce(2);
+  await act(async () => button(settingsZh.legacyNotes.convert).click());
+  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toBe(
+    settingsZh.legacyNotes.partial.replace("{{count}}", "2"),
+  );
+  expect(labels()).toEqual([
+    settingsZh.legacyNotes.done,
+    settingsZh.legacyNotes.retry,
+  ]);
+  mocks.convertLegacyNotes.mockResolvedValueOnce(1);
+  await act(async () => button(settingsZh.legacyNotes.retry).click());
+  expect(dialog()?.querySelector('[role="alert"]')?.textContent).toBe(
+    settingsZh.legacyNotes.partial.replace("{{count}}", "1"),
+  );
+  await act(async () => button(settingsZh.legacyNotes.done).click());
+  expect(mocks.finishLegacyNotes).toHaveBeenCalledTimes(1);
+  expect(dialog()).toBeNull();
+});
+
+test("skipping the conversion leaves notes unchanged and stops asking", async () => {
+  const { dialog, button } = await openLegacyNotesDialog();
+  await act(async () => button(settingsZh.legacyNotes.skip).click());
+  expect(mocks.dataExport).not.toHaveBeenCalled();
+  expect(mocks.convertLegacyNotes).not.toHaveBeenCalled();
+  expect(mocks.finishLegacyNotes).toHaveBeenCalledTimes(1);
+  expect(dialog()).toBeNull();
+});
+
+test("the note conversion waits until the update prompt is handled", async () => {
+  mocks.settings = { ...mocks.settings, pendingUpdatePromptVersion: "9.9.9" };
+  mocks.updateState = { state: "checking", available: false };
+  const { dialog, button } = await openLegacyNotesDialog();
+  const updateTitle = settingsZh.updateDialog.title;
+  expect(dialog()).toBeNull();
+  await act(async () => root.unmount());
+  mocks.updateState = {
+    state: "available",
+    available: true,
+    latestVersion: "9.9.9",
+  };
+  root = createRoot(container);
+  await act(async () => render());
+  expect(dialog()).toBeNull();
+  expect(container.textContent).toContain(updateTitle);
+  const later = Array.from(container.querySelectorAll("button")).find(
+    (item) => item.textContent === settingsZh.updateDialog.later,
+  );
+  if (!later) throw new Error("Missing later button");
+  await act(async () => later.click());
+  expect(container.textContent).not.toContain(updateTitle);
+  expect(dialog()?.textContent).toContain(settingsZh.legacyNotes.title);
+  await act(async () => button(settingsZh.legacyNotes.skip).click());
+  expect(mocks.finishLegacyNotes).toHaveBeenCalledTimes(1);
+  expect(dialog()).toBeNull();
 });

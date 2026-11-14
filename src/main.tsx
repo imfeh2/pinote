@@ -8,6 +8,7 @@ import { SettingsProvider } from "@/hooks/useSettings";
 import { initializeI18n } from "@/i18n";
 import { LocaleSync } from "@/i18n/LocaleSync";
 import { resolveAppLocale } from "@/i18n/locale";
+import { getLegacyNoteCount } from "@/lib/legacyNotes";
 import { logError } from "@/lib/logger";
 import { setupLogging } from "@/lib/logging";
 import { getNoteIdFromPath, normalizeNoteId } from "@/lib/notes";
@@ -97,22 +98,31 @@ function StartupUpdateCheck() {
           if (lastCheckedAt) {
             await updateSettingsStore({ lastUpdateCheckAt: lastCheckedAt });
           }
-          return;
+          return false;
         }
         if (settings?.dismissedUpdateVersion === result.latestVersion) {
           if (lastCheckedAt) {
             await updateSettingsStore({ lastUpdateCheckAt: lastCheckedAt });
           }
-          return;
+          return false;
         }
         await updateSettingsStore({
           lastUpdateCheckAt: lastCheckedAt ?? settings?.lastUpdateCheckAt,
           pendingUpdatePromptVersion: result.latestVersion,
         });
         await openSettingsWindow("about");
+        return true;
       })
       .catch((error) => {
         logError("settings", "startup_update_failed", error);
+        return false;
+      })
+      .then(async (updatePrompted) => {
+        if (!updatePrompted && (await getLegacyNoteCount()) > 0)
+          await openSettingsWindow();
+      })
+      .catch((error) => {
+        logError("settings", "legacy_notes_prompt_failed", error);
       })
       .finally(() => {
         void closeStartupWindow();

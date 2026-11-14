@@ -220,6 +220,25 @@ export default {
     failed: "无法导出数据，请检查保存位置后重试。",
     dialogTitle: "导出数据",
   },
+  legacyNotes: {
+    title: "转换便签格式",
+    description:
+      "Pinote 已启用新编辑器，{{count}} 条便签可转换为新格式，显示效果更好。",
+    details:
+      "转换前请先导出备份。只有「便签文件夹」中的便签会被转换；通过「使用 Pinote 打开」的其他 Markdown 文件不会被修改，也不在备份中。",
+    export: "导出备份",
+    exporting: "正在导出…",
+    saved: "已导出至 {{path}}",
+    skip: "跳过",
+    convert: "转换",
+    converting: "正在转换…",
+    retry: "重试",
+    done: "完成",
+    converted: "便签已全部转换为新格式。",
+    partial: "{{count}} 条便签转换失败。",
+    failed: "转换失败，请重试。",
+    finishFailed: "操作失败，请重试。",
+  },
   diagnostics: {
     saved: "已保存，共 {{count}} 个文件。",
     dialog: { title: "保存报告", zipArchive: "Zip 压缩包" },

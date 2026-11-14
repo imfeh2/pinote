@@ -1,5 +1,6 @@
 mod data_export;
 mod document;
+mod legacy_markdown;
 mod lifecycle;
 mod locale;
 mod note_history;
@@ -1070,6 +1071,9 @@ pub fn run() {
             get_runtime_platform,
             export_diagnostic_report,
             data_export::export_app_data,
+            legacy_markdown::get_legacy_note_count,
+            legacy_markdown::convert_legacy_notes,
+            legacy_markdown::finish_legacy_notes,
             get_open_with_pinote_enabled,
             set_open_with_pinote_enabled,
             get_default_markdown_open_enabled,
@@ -1111,6 +1115,10 @@ pub fn run() {
             handle.manage(document::DocumentService::new(
                 handle.path().app_data_dir()?,
             ));
+            handle.manage(legacy_markdown::LegacyNotes::default());
+            if let Err(error) = legacy_markdown::prepare(&handle) {
+                error!("legacy_markdown_prepare_failed error={error}");
+            }
             let system_environment = collect_system_environment(&handle);
             info!("system_environment {}", system_environment);
             let stored_settings = load_stored_settings(&handle);

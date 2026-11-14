@@ -12,6 +12,7 @@ import { AboutSection } from "@/components/settings/AboutSection";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
 import { ChangelogSection } from "@/components/settings/ChangelogSection";
 import { HistorySection } from "@/components/settings/HistorySection";
+import { LegacyNotesDialog } from "@/components/settings/LegacyNotesDialog";
 import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
 import { ShortcutsSection } from "@/components/settings/ShortcutsSection";
@@ -30,6 +31,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { exportAppData } from "@/lib/dataExport";
 import { saveDiagnosticReport } from "@/lib/diagnostics";
 import { feedbackUrl } from "@/lib/feedback";
+import { getLegacyNoteCount } from "@/lib/legacyNotes";
 import { logError } from "@/lib/logger";
 import {
   type NoteHistorySearchResult,
@@ -176,6 +178,7 @@ export function SettingsApp() {
     useState<string | null>(null);
   const pendingUpdateCheckVersionRef = useRef<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [legacyNoteCount, setLegacyNoteCount] = useState(0);
   const [aboutError, setAboutError] = useState<string | null>(null);
   const [dataExportBusy, setDataExportBusy] = useState(false);
   const dataExportPending = useRef(false);
@@ -244,6 +247,12 @@ export function SettingsApp() {
       updateSnapshot.state === "downloading" ||
       updateSnapshot.state === "readyToRestart" ||
       updateSnapshot.state === "error");
+  const pendingUpdatePromptVersion = settings.pendingUpdatePromptVersion;
+  const waitingForUpdatePrompt =
+    Boolean(pendingUpdatePromptVersion) &&
+    pendingUpdatePromptVersion !== settings.dismissedUpdateVersion &&
+    pendingUpdatePromptVersion !== updateDialogDismissedVersion &&
+    (updateSnapshot.state === "idle" || updateSnapshot.state === "checking");
   const activeWheelResizeModifier =
     wheelResizeModifierOptions.find(
       (item) => item.value === settings.wheelResizeModifier,
@@ -675,6 +684,14 @@ export function SettingsApp() {
   }, []);
 
   useEffect(() => {
+    void getLegacyNoteCount()
+      .then(setLegacyNoteCount)
+      .catch((error) => {
+        logError("settings", "legacy_note_count_failed", error);
+      });
+  }, []);
+
+  useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
     void settingsWindow
@@ -948,6 +965,14 @@ export function SettingsApp() {
           onDownload={handleDownloadUpdate}
           onInstall={handleInstallUpdate}
           onLater={handleUpdateLater}
+        />
+      ) : null}
+
+      {legacyNoteCount > 0 ? (
+        <LegacyNotesDialog
+          open={!shouldShowUpdateDialog && !waitingForUpdatePrompt}
+          count={legacyNoteCount}
+          onDone={() => setLegacyNoteCount(0)}
         />
       ) : null}
     </div>

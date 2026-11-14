@@ -17,6 +17,7 @@ name = "pinote_lib"
 [dependencies]
 chrono = "0.4.45"
 log = "0.4"
+pulldown-cmark = { version = "0.13.6", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

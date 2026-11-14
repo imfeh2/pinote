@@ -18,6 +18,7 @@
   "lastUpdateCheckAt": "",
   "pendingUpdatePromptVersion": "",
   "dismissedUpdateVersion": "",
+  "lastRunVersion": "",
   "shortcuts": {
     "newNote": "Alt+C",
     "restoreWindow": "Alt+S",

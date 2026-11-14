@@ -27,6 +27,7 @@ export interface Settings {
   lastUpdateCheckAt?: string;
   pendingUpdatePromptVersion?: string;
   dismissedUpdateVersion?: string;
+  lastRunVersion?: string;
   shortcuts: {
     newNote: string;
     restoreWindow: string;

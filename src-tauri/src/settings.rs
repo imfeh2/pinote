@@ -150,7 +150,7 @@ impl SettingsStore {
             .clone()
     }
 
-    fn update(&self, patch: Map<String, Value>) -> Result<SettingsSnapshot, String> {
+    pub fn update(&self, patch: Map<String, Value>) -> Result<SettingsSnapshot, String> {
         let defaults = defaults();
         let mut current = self.snapshot.lock().expect("Settings lock poisoned");
         let mut next = current.settings.clone();

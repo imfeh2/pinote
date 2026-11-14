@@ -259,6 +259,28 @@ export default {
     failed: "Could not export data. Check the save location and try again.",
     dialogTitle: "Export data",
   },
+  legacyNotes: {
+    title: "Convert note format",
+    description_one:
+      "Pinote now uses a new editor. {{count}} note can be converted to the new format for better display.",
+    description_other:
+      "Pinote now uses a new editor. {{count}} notes can be converted to the new format for better display.",
+    details:
+      'Export a backup before converting. Only notes in the Note folder are converted. Markdown files opened elsewhere with "Open with Pinote" are not modified or included in the backup.',
+    export: "Export backup",
+    exporting: "Exporting…",
+    saved: "Exported to {{path}}",
+    skip: "Skip",
+    convert: "Convert",
+    converting: "Converting…",
+    retry: "Retry",
+    done: "Done",
+    converted: "All notes have been converted to the new format.",
+    partial_one: "{{count}} note could not be converted.",
+    partial_other: "{{count}} notes could not be converted.",
+    failed: "Conversion failed. Please try again.",
+    finishFailed: "The operation failed. Please try again.",
+  },
   diagnostics: {
     saved_one: "Saved with {{count}} file.",
     saved_other: "Saved with {{count}} files.",

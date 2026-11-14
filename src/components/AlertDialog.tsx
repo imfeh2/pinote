@@ -11,6 +11,8 @@ interface AlertDialogProps {
   actions?: {
     label: string;
     destructive?: boolean;
+    disabled?: boolean;
+    start?: boolean;
     onAction: () => void;
   }[];
   busy?: boolean;
@@ -74,21 +76,26 @@ export function AlertDialog({
                 <Button>{cancelLabel}</Button>
               </AlertDialogPrimitive.Cancel>
             ) : null}
-            {actions.map(({ label, destructive, onAction }) => (
-              <AlertDialogPrimitive.Action
-                key={label}
-                asChild
-                disabled={busy}
-                onClick={(event) => {
-                  event.preventDefault();
-                  onAction();
-                }}
-              >
-                <Button variant={destructive ? "destructive" : "default"}>
-                  {label}
-                </Button>
-              </AlertDialogPrimitive.Action>
-            ))}
+            {actions.map(
+              ({ label, destructive, disabled, start, onAction }) => (
+                <AlertDialogPrimitive.Action
+                  key={label}
+                  asChild
+                  disabled={busy || disabled}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onAction();
+                  }}
+                >
+                  <Button
+                    variant={destructive ? "destructive" : "default"}
+                    className={start ? "mr-auto" : undefined}
+                  >
+                    {label}
+                  </Button>
+                </AlertDialogPrimitive.Action>
+              ),
+            )}
           </div>
         </AlertDialogPrimitive.Content>
       </AlertDialogPrimitive.Portal>
