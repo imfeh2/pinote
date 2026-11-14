@@ -8,6 +8,10 @@ export default {
     retry: "Retry",
     close: "Close",
   },
+  crash: {
+    title: "Something went wrong",
+    reload: "Reload",
+  },
   sections: {
     appearance: {
       label: "Appearance",

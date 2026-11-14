@@ -8,6 +8,10 @@ export default {
     retry: "重试",
     close: "关闭",
   },
+  crash: {
+    title: "出错了",
+    reload: "重新加载",
+  },
   sections: {
     appearance: { label: "外观", description: "语言、主题和视觉样式。" },
     window: { label: "窗口", description: "窗口显示与位置。" },

@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import App from "@/App";
 import ContextMenuApp from "@/ContextMenuApp";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SettingsProvider } from "@/hooks/useSettings";
 import { initializeI18n } from "@/i18n";
 import { LocaleSync } from "@/i18n/LocaleSync";
@@ -160,10 +161,12 @@ async function bootstrap() {
   document.documentElement.lang = locale;
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
-      <SettingsProvider>
-        <LocaleSync />
-        <Root />
-      </SettingsProvider>
+      <ErrorBoundary>
+        <SettingsProvider>
+          <LocaleSync />
+          <Root />
+        </SettingsProvider>
+      </ErrorBoundary>
     </React.StrictMode>,
   );
 }
