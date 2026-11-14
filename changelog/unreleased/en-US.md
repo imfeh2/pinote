@@ -5,4 +5,5 @@
 - Clicking a table cell now edits the table source.
 - Note and Settings errors now appear in dialogs, and a window that fails to render shows Reload and Close.
 - Added a Feedback button on the About page that opens a GitHub issue with the version and system filled in.
+- Exported data now includes the notes in the note folder when it is set to another location.
 - Raised the contrast of secondary text in light and dark themes.
