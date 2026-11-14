@@ -7,6 +7,7 @@ import { I18nextProvider } from "react-i18next";
 import { afterEach, beforeAll, expect, test, vi } from "vitest";
 import { UpdateDialog } from "@/components/settings/UpdateDialog";
 import { initializeI18n } from "@/i18n";
+import noteZh from "@/i18n/resources/zh-CN/note";
 import settingsZh from "@/i18n/resources/zh-CN/settings";
 import { formatReleaseBody } from "@/lib/releaseNotes";
 import type { UpdateSnapshot } from "@/lib/updater";
@@ -74,8 +75,11 @@ test("the update dialog shows the new version's notes in the interface language"
         container.querySelectorAll(".cm-line"),
         (line) => line.textContent,
       ),
-    ).toEqual(expect.arrayContaining(["请先备份。", "• 中文改动"])),
+    ).toEqual([noteZh.alerts.warning, "请先备份。", "", "• 中文改动"]),
   );
+  expect(
+    Array.from(container.querySelectorAll(".cm-md-alert-warning")),
+  ).toHaveLength(2);
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 

@@ -50,6 +50,23 @@ export class RuleWidget extends WidgetType {
   }
 }
 
+export class AlertTitleWidget extends WidgetType {
+  constructor(readonly title: string) {
+    super();
+  }
+
+  eq(other: AlertTitleWidget) {
+    return other.title === this.title;
+  }
+
+  toDOM() {
+    const element = document.createElement("span");
+    element.className = "cm-md-alert-title";
+    element.textContent = this.title;
+    return element;
+  }
+}
+
 export class CodeInfoWidget extends WidgetType {
   constructor(readonly info: string) {
     super();

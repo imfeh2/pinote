@@ -4,6 +4,8 @@ import { forceParsing } from "@codemirror/language";
 import { Compartment } from "@codemirror/state";
 import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { afterEach, expect, test, vi } from "vitest";
+import { initializeI18n } from "@/i18n";
+import noteZh from "@/i18n/resources/zh-CN/note";
 import { focusChanged } from "./livePreview";
 import { clipboardToMarkdown, htmlToMarkdown } from "./paste";
 import { createMarkdownState } from "./setup";
@@ -333,4 +335,25 @@ test("tables update after their source changes", () => {
   expect(cell()).toBe("1");
   view.dispatch({ changes: { from: 14, to: 15, insert: "2" } });
   expect(cell()).toBe("2");
+});
+
+test("alert quotes show a colored title until the cursor enters the marker line", async () => {
+  await initializeI18n("zh-CN");
+  const view = createView(
+    "> [!warning]\n> Back up first.\n\n> [!NOTE]\n\n> [!TIP] text\n> more\n",
+  );
+  const lines = view.contentDOM.querySelectorAll(".cm-line");
+  expect(lines[0].classList.contains("cm-md-alert-warning")).toBe(true);
+  expect(lines[1].classList.contains("cm-md-alert-warning")).toBe(true);
+  expect(lineText(view, 0)).toBe(noteZh.alerts.warning);
+  expect(lineText(view, 1)).toBe("Back up first.");
+  expect(lines[3].classList.contains("cm-md-alert")).toBe(false);
+  expect(lines[5].classList.contains("cm-md-alert")).toBe(false);
+  view.dispatch({ effects: focusChanged.of(true), selection: { anchor: 3 } });
+  expect(lineText(view, 0)).toBe("> [!warning]");
+  expect(
+    view.contentDOM
+      .querySelectorAll(".cm-line")[0]
+      .classList.contains("cm-md-alert-warning"),
+  ).toBe(true);
 });

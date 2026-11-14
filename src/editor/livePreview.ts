@@ -14,7 +14,9 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
+import i18n from "i18next";
 import {
+  AlertTitleWidget,
   BulletWidget,
   CheckboxWidget,
   CodeInfoWidget,
@@ -234,8 +236,24 @@ function listMark(builder: Builder, node: SyntaxNode) {
   builder.widget(node.from, node.to, { widget: new BulletWidget() });
 }
 
+const ALERT_MARKER =
+  /^>[ \t]?(\[!(note|tip|important|warning|caution)\])[ \t]*$/i;
+
 function blockquote(builder: Builder, node: SyntaxNode) {
   builder.lineClass(node.from, node.to, "cm-md-quote");
+  const doc = builder.state.doc;
+  const first = doc.lineAt(node.from);
+  if (doc.lineAt(node.to).number === first.number) return;
+  const text = doc.sliceString(node.from, first.to);
+  const match = ALERT_MARKER.exec(text);
+  if (!match) return;
+  const type = match[2].toLowerCase();
+  builder.lineClass(node.from, node.to, `cm-md-alert cm-md-alert-${type}`);
+  if (builder.touchesLines(node.from, node.from)) return;
+  const from = node.from + text.indexOf("[");
+  builder.widget(from, from + match[1].length, {
+    widget: new AlertTitleWidget(i18n.t(`note:alerts.${type}`)),
+  });
 }
 
 function quoteMark(builder: Builder, node: SyntaxNode) {
