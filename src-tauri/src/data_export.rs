@@ -72,7 +72,7 @@ fn export_to_path(source: &Path, destination: &Path) -> io::Result<DataExport> {
             "Save the archive outside the application data directory.",
         ));
     }
-    let destination = parent.join(
+    let target = parent.join(
         destination
             .file_name()
             .ok_or_else(|| io::Error::other("Choose an archive file name."))?,
@@ -90,7 +90,7 @@ fn export_to_path(source: &Path, destination: &Path) -> io::Result<DataExport> {
     let mut zip = ZipWriter::new(temporary.as_file_mut());
     let file_count = archive_directory(&mut zip, &root, &root)?;
     zip.finish()?.sync_all()?;
-    fs::rename(temporary.path(), &destination)?;
+    fs::rename(temporary.path(), &target)?;
     temporary.disable_cleanup(true);
     Ok(DataExport {
         destination_path: destination.to_string_lossy().into_owned(),
@@ -140,6 +140,10 @@ mod tests {
         fs::write(&destination, b"old archive").unwrap();
         let result = export_to_path(&source, &destination).unwrap();
         assert_eq!(result.file_count, files.len());
+        assert_eq!(
+            result.destination_path,
+            destination.to_string_lossy().into_owned()
+        );
         let mut archive = ZipArchive::new(File::open(&destination).unwrap()).unwrap();
         for (name, content) in files {
             let mut actual = Vec::new();
