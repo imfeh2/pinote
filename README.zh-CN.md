@@ -73,12 +73,17 @@ Pinote 启动时会自动检查更新。
 
 ## 命令行
 
-```bash
-pinote /path/to/note.md
-pinote ./daily.markdown
-```
+运行 `pinote help` 可以查看所有命令和选项。
 
-每个 `.md` 或 `.markdown` 文件会在独立的便签窗口中打开。文件已经打开时，Pinote 会切换到现有窗口。
+| 命令               | 操作                                                 |
+| ------------------ | ---------------------------------------------------- |
+| `pinote <文件>...` | 打开 `.md` 或 `.markdown` 文件，每个文件一个便签窗口 |
+| `pinote new`       | 新建便签                                             |
+| `pinote restore`   | 找回已收起的便签                                     |
+| `pinote show-all`  | 显示所有已收起的便签                                 |
+| `pinote toggle`    | 显示或收起便签                                       |
+
+文件已经打开时，Pinote 会切换到现有窗口。`new`、`restore`、`show-all` 和 `toggle` 与全局快捷键的作用相同，Pinote 未运行时会先启动。在全局快捷键无法使用的环境中（例如 Wayland），可以在桌面环境中将它们绑定为快捷键。
 
 ## 开发
 

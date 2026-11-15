@@ -73,12 +73,17 @@ Wheel modifiers and the mouse button used to move windows can be changed in Sett
 
 ## CLI
 
-```bash
-pinote /path/to/note.md
-pinote ./daily.markdown
-```
+Run `pinote help` to see all commands and options.
 
-Each `.md` or `.markdown` path opens in its own note window. If the file is already open, Pinote focuses the existing window.
+| Command            | Action                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| `pinote <file>...` | Open `.md` or `.markdown` files, each in its own note window |
+| `pinote new`       | New note                                                     |
+| `pinote restore`   | Restore hidden notes                                         |
+| `pinote show-all`  | Show all hidden notes                                        |
+| `pinote toggle`    | Show or hide notes                                           |
+
+If a file is already open, Pinote focuses the existing window. `new`, `restore`, `show-all`, and `toggle` do the same as the global shortcuts and start Pinote first if it is not running. Bind them as shortcuts in your desktop environment where global shortcuts are unavailable, such as on Wayland.
 
 ## Development
 

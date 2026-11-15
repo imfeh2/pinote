@@ -1,3 +1,4 @@
+mod cli;
 mod data_export;
 mod document;
 mod legacy_markdown;
@@ -1038,6 +1039,7 @@ async fn sync_native_locale(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let startup_cli = cli::parse_startup();
     let builder = tauri::Builder::default();
     #[cfg(target_os = "linux")]
     let builder = builder.plugin(linux_webview::init());
@@ -1053,8 +1055,14 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            let requests = parse_cli_open_note_requests(&argv, Some(cwd.as_str()));
+            let Some(forwarded) = cli::parse_forwarded(&argv) else {
+                return;
+            };
+            let requests = parse_cli_open_note_requests(&forwarded.files, Some(cwd.as_str()));
             open_cli_note_windows(app, requests);
+            if let Some(action) = forwarded.action {
+                cli::run(app, action);
+            }
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -1086,7 +1094,7 @@ pub fn run() {
             set_global_shortcuts,
             sync_native_locale
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle().clone();
             let stdout_level = if cfg!(debug_assertions) {
                 LevelFilter::Debug
@@ -1147,15 +1155,20 @@ pub fn run() {
                         return;
                     }
                 };
-                let startup_args = std::env::args().collect::<Vec<_>>();
                 let startup_cwd = std::env::current_dir()
                     .ok()
                     .map(|path| path.to_string_lossy().into_owned());
-                let requests = parse_cli_open_note_requests(&startup_args, startup_cwd.as_deref());
-                if requests.is_empty() && restored_count == 0 {
+                let requests =
+                    parse_cli_open_note_requests(&startup_cli.files, startup_cwd.as_deref());
+                let action = startup_cli.action;
+                if requests.is_empty() && restored_count == 0 && action != Some(cli::CliAction::New)
+                {
                     open_new_note_window(&handle);
                 } else {
                     open_cli_requests(&handle, requests).await;
+                }
+                if let Some(action) = action.filter(|action| *action != cli::CliAction::Toggle) {
+                    cli::run(&handle, action);
                 }
                 window::bring_note_windows_back_on_screen(&handle);
                 info!("app_ready");

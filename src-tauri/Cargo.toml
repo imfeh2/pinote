@@ -16,6 +16,7 @@ name = "pinote_lib"
 
 [dependencies]
 chrono = "0.4.45"
+clap = { version = "4.6.7", features = ["derive"] }
 log = "0.4"
 pulldown-cmark = { version = "0.13.6", default-features = false }
 serde = { version = "1", features = ["derive"] }
@@ -48,6 +49,7 @@ tauri-build = { version = "2", features = [] }
 webkit2gtk = { version = "2.0", features = ["v2_20"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
 winreg = "0.55"
 
 [target."cfg(unix)".dev-dependencies]

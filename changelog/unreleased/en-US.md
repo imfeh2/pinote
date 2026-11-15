@@ -1,1 +1,2 @@
 - Fixed note windows on Linux that could turn blank and keep Pinote from quitting. They can now be reloaded or closed.
+- Added commands matching the global shortcuts, such as `pinote new` and `pinote toggle`, so they can be bound as shortcuts in the desktop environment, for example on Wayland where global shortcuts are unavailable. Run `pinote help` to see all commands.
