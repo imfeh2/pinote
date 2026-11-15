@@ -43,7 +43,9 @@ impl NativeLocaleState {
 pub struct NativeText {
     pub exit_failed: &'static str,
     #[cfg(target_os = "linux")]
-    pub renderer_stopped: &'static str,
+    pub note_renderer_stopped: &'static str,
+    #[cfg(target_os = "linux")]
+    pub window_renderer_stopped: &'static str,
     #[cfg(target_os = "linux")]
     pub reload_window: &'static str,
     #[cfg(target_os = "linux")]
@@ -60,11 +62,13 @@ pub struct NativeText {
 const EN_US_TEXT: NativeText = NativeText {
     exit_failed: "Some notes could not be saved. Check the open notes and try again.",
     #[cfg(target_os = "linux")]
-    renderer_stopped: "The web renderer stopped. Changes that were not saved may be lost. Reload the last saved version or close this window.",
+    note_renderer_stopped: "This note stopped displaying. Unsaved changes may be lost. Reload the last saved version or close the note.",
     #[cfg(target_os = "linux")]
-    reload_window: "Reload saved version",
+    window_renderer_stopped: "This window stopped displaying. Reload or close it.",
     #[cfg(target_os = "linux")]
-    close_window: "Close window",
+    reload_window: "Reload",
+    #[cfg(target_os = "linux")]
+    close_window: "Close",
     restore_hidden: "Show note",
     open_settings: "Settings",
     quit: "Quit",
@@ -77,11 +81,13 @@ const EN_US_TEXT: NativeText = NativeText {
 const ZH_CN_TEXT: NativeText = NativeText {
     exit_failed: "部分便签未能保存，请检查便签后重试。",
     #[cfg(target_os = "linux")]
-    renderer_stopped: "网页渲染进程已停止，未保存的更改可能已丢失。请重新加载上次保存的版本，或关闭此窗口。",
+    note_renderer_stopped: "便签无法继续显示，尚未保存的修改可能已丢失。可以重新加载上次保存的内容，或关闭此便签。",
     #[cfg(target_os = "linux")]
-    reload_window: "重新加载已保存版本",
+    window_renderer_stopped: "窗口无法继续显示，可以重新加载或关闭此窗口。",
     #[cfg(target_os = "linux")]
-    close_window: "关闭窗口",
+    reload_window: "重新加载",
+    #[cfg(target_os = "linux")]
+    close_window: "关闭",
     restore_hidden: "显示便签",
     open_settings: "设置",
     quit: "退出",

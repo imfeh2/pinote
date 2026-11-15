@@ -35,9 +35,24 @@ pub fn init() -> TauriPlugin<tauri::Wry> {
                             pending.store(false, Ordering::Relaxed);
                             return;
                         };
+                        let note = app.state::<DocumentService>().for_window(&label).is_ok();
+                        let visible = window.is_visible().unwrap_or_else(|error| {
+                            log::error!("renderer_window_visibility_failed window={label:?} error={error}");
+                            true
+                        });
+                        if !note && !visible {
+                            if let Err(error) = window.destroy() {
+                                log::error!("renderer_recovery_failed window={label:?} error={error}");
+                            }
+                            return;
+                        }
                         let text = locale::current_text(&app);
                         app.dialog()
-                            .message(text.renderer_stopped)
+                            .message(if note {
+                                text.note_renderer_stopped
+                            } else {
+                                text.window_renderer_stopped
+                            })
                             .title("Pinote")
                             .parent(&window)
                             .kind(MessageDialogKind::Error)
@@ -46,12 +61,9 @@ pub fn init() -> TauriPlugin<tauri::Wry> {
                             ))
                             .show(move |reload| {
                                 pending.store(false, Ordering::Relaxed);
-                                // Close the native window, not just its webview.
                                 let result = if reload {
                                     window.reload()
-                                } else if window.app_handle().state::<DocumentService>()
-                                    .for_window(&label).is_ok()
-                                {
+                                } else if note {
                                     window.close()
                                 } else {
                                     window.destroy()

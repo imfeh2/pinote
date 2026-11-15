@@ -689,8 +689,6 @@ impl DocumentService {
 
     #[cfg(target_os = "linux")]
     pub async fn renderer_terminated(&self, label: String) -> Result<(), DocumentError> {
-        // A dead renderer cannot answer close or exit requests. Keep its binding
-        // and cached window state so a reload reads the last saved file.
         let document = match self.for_window(&label) {
             Ok(document) => document,
             Err(DocumentError::Ended) => return Ok(()),
@@ -938,7 +936,6 @@ mod tests {
             let path = directory.path().join("failed.md");
             assert_eq!(fs::read_to_string(&path).unwrap(), "saved text\n");
 
-            // Reload the same editing session, including intervening disk edits.
             fs::write(&path, "external text\n").unwrap();
             let snapshot =
                 DocumentService::run(service.for_window("failed").unwrap(), |document| {

@@ -1,1 +1,1 @@
-- On Linux, a stopped web renderer now opens a native dialog to reload the last saved version or close the window. Failed renderers no longer block normal note closing or application exit while waiting for a save confirmation.
+- Fixed note windows on Linux that could turn blank and keep Pinote from quitting. They can now be reloaded or closed.
