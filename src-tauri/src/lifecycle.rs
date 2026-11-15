@@ -7,7 +7,9 @@ use uuid::Uuid;
 
 enum ExitState {
     Running,
-    Draining,
+    Draining {
+        renderer_failed: bool,
+    },
     Saving {
         attempt: String,
         pending: HashSet<String>,
@@ -47,7 +49,9 @@ impl ApplicationLifecycle {
             if !matches!(state, ExitState::Running) {
                 return false;
             }
-            *state = ExitState::Draining;
+            *state = ExitState::Draining {
+                renderer_failed: false,
+            };
             true
         })
     }
@@ -57,10 +61,31 @@ impl ApplicationLifecycle {
     }
 
     fn saving(&self, attempt: String, labels: Vec<String>) {
-        self.state.send_replace(ExitState::Saving {
-            attempt,
-            pending: labels.into_iter().collect(),
-            failed: false,
+        self.state.send_if_modified(|state| {
+            let failed = matches!(
+                state,
+                ExitState::Draining {
+                    renderer_failed: true
+                }
+            );
+            *state = ExitState::Saving {
+                attempt,
+                pending: labels.into_iter().collect(),
+                failed,
+            };
+            true
+        });
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn renderer_terminated(&self) {
+        self.state.send_if_modified(|state| {
+            match state {
+                ExitState::Draining { renderer_failed } => *renderer_failed = true,
+                ExitState::Saving { failed, .. } => *failed = true,
+                _ => return false,
+            }
+            true
         });
     }
 
@@ -209,6 +234,31 @@ mod tests {
             assert!(lifecycle.wait_finished("second").await);
             assert!(!lifecycle.wait_finished("first").await);
             assert!(lifecycle.confirmed(Some(0)));
+        });
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn renderer_loss_cancels_exit_before_or_after_save_acknowledgement() {
+        tauri::async_runtime::block_on(async {
+            let lifecycle = ApplicationLifecycle::default();
+            assert!(lifecycle.begin());
+            lifecycle.renderer_terminated();
+            lifecycle.saving("before".into(), vec!["note".into()]);
+            assert!(lifecycle.acknowledge("note", Some("before"), true));
+            assert!(lifecycle.wait_ready("before").await.is_err());
+            lifecycle.cancel();
+
+            assert!(lifecycle.begin());
+            lifecycle.saving("after".into(), vec!["note".into()]);
+            assert!(lifecycle.acknowledge("note", Some("after"), true));
+            lifecycle.renderer_terminated();
+            assert!(lifecycle.wait_ready("after").await.is_err());
+            lifecycle.cancel();
+
+            assert!(lifecycle.begin());
+            lifecycle.saving("retry".into(), Vec::new());
+            assert!(lifecycle.wait_ready("retry").await.is_ok());
         });
     }
 }

@@ -1,0 +1,1 @@
+- Fixed note windows on Linux that could turn blank and keep Pinote from quitting. They can now be reloaded or closed.

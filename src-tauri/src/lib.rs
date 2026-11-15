@@ -2,6 +2,8 @@ mod data_export;
 mod document;
 mod legacy_markdown;
 mod lifecycle;
+#[cfg(target_os = "linux")]
+mod linux_webview;
 mod locale;
 mod note_history;
 mod settings;
@@ -1036,7 +1038,10 @@ async fn sync_native_locale(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "linux")]
+    let builder = builder.plugin(linux_webview::init());
+    builder
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

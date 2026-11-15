@@ -42,6 +42,14 @@ impl NativeLocaleState {
 #[derive(Clone, Copy)]
 pub struct NativeText {
     pub exit_failed: &'static str,
+    #[cfg(target_os = "linux")]
+    pub note_renderer_stopped: &'static str,
+    #[cfg(target_os = "linux")]
+    pub window_renderer_stopped: &'static str,
+    #[cfg(target_os = "linux")]
+    pub reload_window: &'static str,
+    #[cfg(target_os = "linux")]
+    pub close_window: &'static str,
     pub restore_hidden: &'static str,
     pub open_settings: &'static str,
     pub quit: &'static str,
@@ -53,6 +61,14 @@ pub struct NativeText {
 
 const EN_US_TEXT: NativeText = NativeText {
     exit_failed: "Some notes could not be saved. Check the open notes and try again.",
+    #[cfg(target_os = "linux")]
+    note_renderer_stopped: "This note stopped displaying. Unsaved changes may be lost. Reload the last saved version or close the note.",
+    #[cfg(target_os = "linux")]
+    window_renderer_stopped: "This window stopped displaying. Reload or close it.",
+    #[cfg(target_os = "linux")]
+    reload_window: "Reload",
+    #[cfg(target_os = "linux")]
+    close_window: "Close",
     restore_hidden: "Show note",
     open_settings: "Settings",
     quit: "Quit",
@@ -64,6 +80,14 @@ const EN_US_TEXT: NativeText = NativeText {
 
 const ZH_CN_TEXT: NativeText = NativeText {
     exit_failed: "部分便签未能保存，请检查便签后重试。",
+    #[cfg(target_os = "linux")]
+    note_renderer_stopped: "便签无法继续显示，尚未保存的修改可能已丢失。可以重新加载上次保存的内容，或关闭此便签。",
+    #[cfg(target_os = "linux")]
+    window_renderer_stopped: "窗口无法继续显示，可以重新加载或关闭此窗口。",
+    #[cfg(target_os = "linux")]
+    reload_window: "重新加载",
+    #[cfg(target_os = "linux")]
+    close_window: "关闭",
     restore_hidden: "显示便签",
     open_settings: "设置",
     quit: "退出",
