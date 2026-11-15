@@ -30,9 +30,6 @@ winget install ImFeH2.Pinote
 
 Pinote 启动时会自动检查更新。
 
-Wayland 兼容性选项、渲染进程崩溃恢复和 Hyprland 快捷键示例见
-[Linux 桌面集成](docs/linux.md)（英文）。
-
 ## 功能
 
 - **Markdown 便签**：使用轻量的所见即所得编辑器，可以同时打开多个便签。

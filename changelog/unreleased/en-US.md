@@ -1,2 +1,1 @@
 - On Linux, a stopped web renderer now opens a native dialog to reload the last saved version or close the window. Failed renderers no longer block normal note closing or application exit while waiting for a save confirmation.
-- Added optional Linux launch helpers and Hyprland integration examples, including scoped compatibility settings and their accessibility tradeoffs.
