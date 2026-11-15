@@ -17,7 +17,6 @@ import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
 import { ShortcutsSection } from "@/components/settings/ShortcutsSection";
 import {
-  dragMouseButtonOptions,
   type GlobalShortcutKey,
   type SettingsSection,
   type ShortcutKey,
@@ -261,10 +260,6 @@ export function SettingsApp() {
     wheelResizeModifierOptions.find(
       (item) => item.value === settings.wheelOpacityModifier,
     ) ?? wheelResizeModifierOptions[1];
-  const activeDragMouseButton =
-    dragMouseButtonOptions.find(
-      (item) => item.value === settings.dragMouseButton,
-    ) ?? dragMouseButtonOptions[0];
   const customNotesDirectory = settings.newNoteDirectory.trim();
   const effectiveNotesDirectory = customNotesDirectory || defaultNotesDirectory;
   const globalShortcutRegistrationSignature = [
@@ -881,7 +876,6 @@ export function SettingsApp() {
         globalShortcutRegistration={displayedGlobalShortcutRegistration}
         activeWheelResizeModifier={activeWheelResizeModifier}
         activeWheelOpacityModifier={activeWheelOpacityModifier}
-        activeDragMouseButton={activeDragMouseButton}
         updateShortcut={updateShortcut}
         updateSettings={updateSettings}
       />

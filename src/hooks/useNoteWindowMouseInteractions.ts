@@ -13,7 +13,11 @@ import {
 } from "@/lib/contextMenuApi";
 import { logError, logInfo } from "@/lib/logger";
 
-import type { DragMouseButton, WheelResizeModifier } from "@/stores/settings";
+import type {
+  DragModifier,
+  DragMouseButton,
+  WheelResizeModifier,
+} from "@/stores/settings";
 
 const WINDOW_MIN_WIDTH = 1;
 const WINDOW_MIN_HEIGHT = 1;
@@ -68,7 +72,8 @@ interface UseNoteWindowMouseInteractionsOptions {
   noteId: string;
   notePath: string;
   windowLabel: string;
-  dragMouseButton: DragMouseButton;
+  dragMouseButtons: DragMouseButton[];
+  dragModifier: DragModifier;
   wheelOpacityModifier: WheelResizeModifier;
   wheelResizeModifier: WheelResizeModifier;
   noteOpacityRef: MutableRefObject<number>;
@@ -105,10 +110,6 @@ function wheelModifierMatchesEvent(
   return event.metaKey && !event.altKey && !event.ctrlKey && !event.shiftKey;
 }
 
-function resolveDragMouseButtonCode(button: DragMouseButton) {
-  return button === "right" ? 2 : 1;
-}
-
 function consumeMouseEvent(event: MouseEvent) {
   event.preventDefault();
   event.stopPropagation();
@@ -126,7 +127,8 @@ export function useNoteWindowMouseInteractions(
     noteId,
     notePath,
     windowLabel,
-    dragMouseButton,
+    dragMouseButtons,
+    dragModifier,
     wheelOpacityModifier,
     wheelResizeModifier,
     noteOpacityRef,
@@ -148,6 +150,13 @@ export function useNoteWindowMouseInteractions(
   const closeContextMenu = useCallback(() => {
     void closeNoteContextMenu(windowLabel);
   }, [windowLabel]);
+
+  const suppressContextMenuOnce = useCallback(() => {
+    suppressNextContextMenu.current = true;
+    window.setTimeout(() => {
+      suppressNextContextMenu.current = false;
+    }, 200);
+  }, []);
 
   useEffect(() => {
     if (!interactionBlocked) return;
@@ -226,7 +235,8 @@ export function useNoteWindowMouseInteractions(
 
   useEffect(() => {
     if (interactionBlocked) return;
-    const dragButton = resolveDragMouseButtonCode(dragMouseButton);
+    const middleDrag = dragMouseButtons.includes("middle");
+    const rightDrag = dragMouseButtons.includes("right");
 
     const handleMiddleAuxClick = (event: MouseEvent) => {
       if (event.button !== 1) return;
@@ -234,9 +244,29 @@ export function useNoteWindowMouseInteractions(
     };
 
     const handlePointerMouseDown = (event: MouseEvent) => {
-      const isDragButton = event.button === dragButton;
-      const isMiddleToggleButton = event.button === 1;
-      if (!isDragButton && !isMiddleToggleButton) return;
+      if (
+        event.button === 0 &&
+        dragModifier !== "none" &&
+        wheelModifierMatchesEvent(event, dragModifier)
+      ) {
+        consumeMouseEvent(event);
+        closeContextMenu();
+        suppressContextMenuOnce();
+        logInfo("note-window", "window_drag_start", {
+          windowId: windowLabel,
+          modifier: dragModifier,
+        });
+        appWindow.startDragging().catch((error) => {
+          logError("note-window", "start_dragging_failed", error, {
+            windowId: windowLabel,
+          });
+        });
+        return;
+      }
+      const isMiddleButton = event.button === 1;
+      const isDragButton =
+        (isMiddleButton && middleDrag) || (event.button === 2 && rightDrag);
+      if (!isDragButton && !isMiddleButton) return;
       consumeMouseEvent(event);
       closeContextMenu();
       const startedAt = performance.now();
@@ -269,7 +299,7 @@ export function useNoteWindowMouseInteractions(
       logInfo("note-window", "mouse_drag_down", {
         windowId: windowLabel,
         button: event.button,
-        dragButton,
+        dragMouseButtons,
         allowMove: isDragButton,
         screenX: event.screenX,
         screenY: event.screenY,
@@ -315,20 +345,15 @@ export function useNoteWindowMouseInteractions(
     appWindow,
     closeContextMenu,
     interactionBlocked,
-    dragMouseButton,
+    dragModifier,
+    dragMouseButtons,
     queueMiddleDragPosition,
+    suppressContextMenuOnce,
     windowLabel,
   ]);
 
   useEffect(() => {
     if (interactionBlocked) return;
-    const suppressContextMenuOnce = () => {
-      suppressNextContextMenu.current = true;
-      window.setTimeout(() => {
-        suppressNextContextMenu.current = false;
-      }, 200);
-    };
-
     const handleMouseMove = (event: MouseEvent) => {
       const state = middleDragState.current;
       if (!state) return;
@@ -487,6 +512,7 @@ export function useNoteWindowMouseInteractions(
     noteOpacityRef,
     noteReadOnlyRef,
     queueMiddleDragPosition,
+    suppressContextMenuOnce,
     toggleAlwaysOnTop,
     windowLabel,
   ]);
@@ -616,7 +642,9 @@ export function useNoteWindowMouseInteractions(
   useEffect(() => {
     if (
       interactionBlocked ||
-      (wheelResizeModifier !== "alt" && wheelOpacityModifier !== "alt")
+      (wheelResizeModifier !== "alt" &&
+        wheelOpacityModifier !== "alt" &&
+        dragModifier !== "alt")
     ) {
       return;
     }
@@ -633,7 +661,12 @@ export function useNoteWindowMouseInteractions(
       window.removeEventListener("keydown", suppressBareAlt, true);
       window.removeEventListener("keyup", suppressBareAlt, true);
     };
-  }, [interactionBlocked, wheelOpacityModifier, wheelResizeModifier]);
+  }, [
+    dragModifier,
+    interactionBlocked,
+    wheelOpacityModifier,
+    wheelResizeModifier,
+  ]);
 
   const openContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLElement>) => {

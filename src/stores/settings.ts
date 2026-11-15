@@ -6,6 +6,7 @@ export type EditorFontFamily = "system" | "serif" | "mono";
 export type WheelResizeModifier = "alt" | "ctrl" | "shift" | "meta";
 export type WindowsGlassEffect = "none" | "mica" | "acrylic" | "blur";
 export type DragMouseButton = "middle" | "right";
+export type DragModifier = "none" | "alt" | "ctrl" | "meta";
 
 export interface Settings {
   language: LanguagePreference;
@@ -23,7 +24,8 @@ export interface Settings {
   confirmNoteDeletion: boolean;
   wheelResizeModifier: WheelResizeModifier;
   wheelOpacityModifier: WheelResizeModifier;
-  dragMouseButton: DragMouseButton;
+  dragMouseButtons: DragMouseButton[];
+  dragModifier: DragModifier;
   lastUpdateCheckAt?: string;
   pendingUpdatePromptVersion?: string;
   dismissedUpdateVersion?: string;

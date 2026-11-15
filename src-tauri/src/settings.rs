@@ -37,13 +37,23 @@ fn defaults() -> Map<String, Value> {
 }
 
 fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
+    if key == "dragMouseButtons" {
+        return value.as_array().is_some_and(|buttons| {
+            buttons.iter().enumerate().all(|(index, button)| {
+                button
+                    .as_str()
+                    .is_some_and(|button| ["middle", "right"].contains(&button))
+                    && !buttons[..index].contains(button)
+            })
+        });
+    }
     let choices: &[&str] = match key {
         "language" => &["system", "en-US", "zh-CN"],
         "theme" => &["system", "light", "dark"],
         "noteGlassEffectWindows" => &["none", "mica", "acrylic", "blur"],
         "editorFontFamily" => &["system", "serif", "mono"],
         "wheelResizeModifier" | "wheelOpacityModifier" => &["alt", "ctrl", "shift", "meta"],
-        "dragMouseButton" => &["middle", "right"],
+        "dragModifier" => &["none", "alt", "ctrl", "meta"],
         _ => &[],
     };
     if !choices.is_empty() {
@@ -67,6 +77,14 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
 fn normalize(mut stored: Map<String, Value>) -> Map<String, Value> {
     let defaults = defaults();
     stored.remove("noteGlassBlur");
+    if let Some(Value::String(button)) = stored.remove("dragMouseButton")
+        && !stored.contains_key("dragMouseButtons")
+    {
+        stored.insert(
+            "dragMouseButtons".into(),
+            Value::Array(vec![Value::String(button)]),
+        );
+    }
     for (key, default) in &defaults {
         if key == "shortcuts" {
             let mut shortcuts = stored
@@ -315,6 +333,45 @@ mod tests {
             fs::write(&path, content).unwrap();
             assert!(SettingsStore::new(path.clone()).is_err());
             assert_eq!(fs::read_to_string(&path).unwrap(), content);
+        }
+    }
+
+    #[test]
+    fn drag_settings_are_migrated_and_validated() {
+        let directory = storage::test_directory();
+        let path = directory.path().join("settings.json");
+        for (stored, buttons) in [
+            (json!({"dragMouseButton": "right"}), json!(["right"])),
+            (json!({"dragMouseButton": "middle"}), json!(["middle"])),
+            (json!({"dragMouseButton": "left"}), json!(["middle"])),
+            (json!({}), json!(["middle"])),
+        ] {
+            fs::write(&path, stored.to_string()).unwrap();
+            let settings = SettingsStore::new(path.clone())
+                .unwrap()
+                .snapshot()
+                .settings;
+            assert_eq!(settings["dragMouseButtons"], buttons);
+            assert_eq!(settings["dragModifier"], "alt");
+            assert!(!settings.contains_key("dragMouseButton"));
+        }
+        let store = SettingsStore::new(path).unwrap();
+        for value in [
+            json!({"dragMouseButtons": []}),
+            json!({"dragMouseButtons": ["right", "middle"]}),
+            json!({"dragModifier": "none"}),
+            json!({"dragModifier": "meta"}),
+        ] {
+            assert!(store.update(patch(value)).is_ok());
+        }
+        for value in [
+            json!({"dragMouseButtons": ["middle", "middle"]}),
+            json!({"dragMouseButtons": ["left"]}),
+            json!({"dragMouseButtons": "middle"}),
+            json!({"dragModifier": "shift"}),
+            json!({"dragMouseButton": "right"}),
+        ] {
+            assert!(store.update(patch(value)).is_err());
         }
     }
 }

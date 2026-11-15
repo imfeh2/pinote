@@ -306,7 +306,8 @@ function App({
 
   const { openContextMenu } = useNoteWindowMouseInteractions({
     appWindow,
-    dragMouseButton: settings.dragMouseButton,
+    dragModifier: settings.dragModifier,
+    dragMouseButtons: settings.dragMouseButtons,
     interactionBlocked,
     noteId,
     notePath,

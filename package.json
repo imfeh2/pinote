@@ -49,6 +49,7 @@
     "@lezer/markdown": "^1.8.1",
     "@radix-ui/react-alert-dialog": "^1.2.1",
     "@radix-ui/react-checkbox": "^1.4.1",
+    "@radix-ui/react-toggle-group": "^1.2.1",
     "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-autostart": "^2.5.1",

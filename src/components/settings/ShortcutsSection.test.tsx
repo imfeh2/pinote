@@ -1,0 +1,108 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { DEFAULT_SETTINGS, type Settings } from "@/stores/settings";
+import { ShortcutsSection } from "./ShortcutsSection";
+import { wheelResizeModifierOptions } from "./shared";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, string>) =>
+      values ? `${key}:${Object.values(values).join(",")}` : key,
+  }),
+}));
+
+const update = vi.fn();
+let container: HTMLDivElement;
+let root: Root;
+
+async function render(settings: Partial<Settings>) {
+  await act(async () =>
+    root.render(
+      <ShortcutsSection
+        settings={{ ...DEFAULT_SETTINGS, ...settings }}
+        shortcutError={null}
+        globalShortcutRegistration={{
+          newNote: true,
+          restoreWindow: true,
+          showAllHiddenWindows: true,
+          toggleVisibleWindows: true,
+        }}
+        activeWheelResizeModifier={wheelResizeModifierOptions[0]}
+        activeWheelOpacityModifier={wheelResizeModifierOptions[1]}
+        updateShortcut={() => {}}
+        updateSettings={update}
+      />,
+    ),
+  );
+}
+
+function group(label: string) {
+  const element = container.querySelector(`[aria-label="${label}"]`);
+  if (!element) throw new Error(`Missing group: ${label}`);
+  return element;
+}
+
+function item(groupLabel: string, text: string) {
+  const button = Array.from(
+    group(groupLabel).querySelectorAll<HTMLButtonElement>("button"),
+  ).find((button) => button.textContent === text);
+  if (!button) throw new Error(`Missing item: ${text}`);
+  return button;
+}
+
+async function click(button: HTMLButtonElement) {
+  await act(async () => button.click());
+}
+
+beforeEach(() => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  update.mockReset();
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+});
+afterEach(async () => {
+  await act(async () => root.unmount());
+  container.remove();
+});
+
+test("drag mouse buttons turn on and off independently", async () => {
+  await render({ dragMouseButtons: ["middle"] });
+  const buttons = "shortcuts.dragButton.mouseButtons";
+  await click(item(buttons, "shortcuts.mouseButtons.right"));
+  expect(update).toHaveBeenLastCalledWith({
+    dragMouseButtons: ["middle", "right"],
+  });
+  await click(item(buttons, "shortcuts.mouseButtons.middle"));
+  expect(update).toHaveBeenLastCalledWith({ dragMouseButtons: [] });
+});
+
+test("clicking the chosen drag modifier turns modifier dragging off", async () => {
+  const modifiers = "shortcuts.dragButton.modifiers";
+  const alt = "shortcuts.dragButton.withLeft:shortcuts.modifiers.alt";
+  const ctrl = "shortcuts.dragButton.withLeft:shortcuts.modifiers.ctrl";
+  await render({ dragModifier: "alt" });
+  expect(
+    Array.from(group(modifiers).querySelectorAll("button"), (button) =>
+      button.textContent?.split(".").pop(),
+    ),
+  ).toEqual(["alt", "ctrl", "meta"]);
+  await click(item(modifiers, ctrl));
+  expect(update).toHaveBeenLastCalledWith({ dragModifier: "ctrl" });
+  await click(item(modifiers, alt));
+  expect(update).toHaveBeenLastCalledWith({ dragModifier: "none" });
+  await render({ dragModifier: "none", dragMouseButtons: [] });
+  expect(container.textContent).toContain("shortcuts.dragButton.edgeOnly");
+  expect(container.textContent).not.toContain(
+    "shortcuts.currentInteractions.move",
+  );
+});
+
+test("a wheel modifier stays selected when clicked again", async () => {
+  await render({ wheelResizeModifier: "alt" });
+  await click(item("shortcuts.wheelResize.label", "shortcuts.modifiers.alt"));
+  expect(update).not.toHaveBeenCalled();
+});

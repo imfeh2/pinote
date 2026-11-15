@@ -1,4 +1,5 @@
 import type {
+  DragModifier,
   DragMouseButton,
   WheelResizeModifier,
   WindowsGlassEffect,
@@ -65,6 +66,15 @@ export const dragMouseButtonOptions: Array<{
 }> = [
   { value: "middle", labelKey: "shortcuts.mouseButtons.middle" },
   { value: "right", labelKey: "shortcuts.mouseButtons.right" },
+];
+
+export const dragModifierOptions: Array<{
+  value: Exclude<DragModifier, "none">;
+  labelKey: string;
+}> = [
+  { value: "alt", labelKey: "shortcuts.modifiers.alt" },
+  { value: "ctrl", labelKey: "shortcuts.modifiers.ctrl" },
+  { value: "meta", labelKey: "shortcuts.modifiers.meta" },
 ];
 
 export const windowsGlassEffectOptions: Array<{

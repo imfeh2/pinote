@@ -67,9 +67,10 @@ Shortcuts can be changed in Settings. New note, restore hidden notes, show all h
 | `Ctrl + Wheel`      | Adjust note opacity                  |
 | Middle click        | Toggle always on top                 |
 | Middle drag         | Move the note window                 |
+| `Alt` + Left drag   | Move the note window                 |
 | Right click         | Open the note menu                   |
 
-Wheel modifiers and the mouse button used to move windows can be changed in Settings. When right drag is selected, a right click still opens the note menu.
+Wheel modifiers and the ways to move windows can be changed in Settings: middle drag and right drag can each be turned on or off, and left drag can use Alt, Ctrl, or Meta, or be turned off. When right drag is on, a right click still opens the note menu.
 
 ## CLI
 
