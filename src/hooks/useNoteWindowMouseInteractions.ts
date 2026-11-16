@@ -94,10 +94,11 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function wheelModifierMatchesEvent(
+function modifierMatchesEvent(
   event: ModifierState,
   modifier: WheelResizeModifier,
 ) {
+  if (modifier === "none") return false;
   if (modifier === "alt") {
     return event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey;
   }
@@ -244,11 +245,7 @@ export function useNoteWindowMouseInteractions(
     };
 
     const handlePointerMouseDown = (event: MouseEvent) => {
-      if (
-        event.button === 0 &&
-        dragModifier !== "none" &&
-        wheelModifierMatchesEvent(event, dragModifier)
-      ) {
+      if (event.button === 0 && modifierMatchesEvent(event, dragModifier)) {
         consumeMouseEvent(event);
         closeContextMenu();
         suppressContextMenuOnce();
@@ -608,13 +605,13 @@ export function useNoteWindowMouseInteractions(
         }
       };
 
-      if (wheelModifierMatchesEvent(event, wheelOpacityModifier)) {
+      if (modifierMatchesEvent(event, wheelOpacityModifier)) {
         consumeWheelEvent();
         closeContextMenu();
         adjustOpacityByWheel(event.deltaY);
         return;
       }
-      if (!wheelModifierMatchesEvent(event, wheelResizeModifier)) return;
+      if (!modifierMatchesEvent(event, wheelResizeModifier)) return;
       consumeWheelEvent();
       closeContextMenu();
       void resizeWindowByWheel(event.deltaY, event.clientX, event.clientY);

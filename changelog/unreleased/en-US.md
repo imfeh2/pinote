@@ -1,3 +1,4 @@
 - Fixed note windows on Linux that could turn blank and keep Pinote from quitting. They can now be reloaded or closed.
 - Added commands matching the global shortcuts, such as `pinote new` and `pinote toggle`, so they can be bound as shortcuts in the desktop environment, for example on Wayland where global shortcuts are unavailable. Run `pinote help` to see all commands.
 - Added Alt + left drag to move note windows more smoothly. The modifier can be changed to Ctrl or Meta in Settings, or turned off. Middle drag and right drag can now be turned on together.
+- Resizing and adjusting see-through with the wheel can now be turned off in Settings.

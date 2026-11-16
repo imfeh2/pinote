@@ -21,7 +21,6 @@ import {
   type SettingsSection,
   type ShortcutKey,
   sections,
-  wheelResizeModifierOptions,
 } from "@/components/settings/shared";
 import { UpdateDialog } from "@/components/settings/UpdateDialog";
 import { WindowSection } from "@/components/settings/WindowSection";
@@ -252,14 +251,6 @@ export function SettingsApp() {
     pendingUpdatePromptVersion !== settings.dismissedUpdateVersion &&
     pendingUpdatePromptVersion !== updateDialogDismissedVersion &&
     (updateSnapshot.state === "idle" || updateSnapshot.state === "checking");
-  const activeWheelResizeModifier =
-    wheelResizeModifierOptions.find(
-      (item) => item.value === settings.wheelResizeModifier,
-    ) ?? wheelResizeModifierOptions[0];
-  const activeWheelOpacityModifier =
-    wheelResizeModifierOptions.find(
-      (item) => item.value === settings.wheelOpacityModifier,
-    ) ?? wheelResizeModifierOptions[1];
   const customNotesDirectory = settings.newNoteDirectory.trim();
   const effectiveNotesDirectory = customNotesDirectory || defaultNotesDirectory;
   const globalShortcutRegistrationSignature = [
@@ -874,8 +865,6 @@ export function SettingsApp() {
         settings={settings}
         shortcutError={shortcutInvalid ? t("errors.invalidShortcut") : null}
         globalShortcutRegistration={displayedGlobalShortcutRegistration}
-        activeWheelResizeModifier={activeWheelResizeModifier}
-        activeWheelOpacityModifier={activeWheelOpacityModifier}
         updateShortcut={updateShortcut}
         updateSettings={updateSettings}
       />

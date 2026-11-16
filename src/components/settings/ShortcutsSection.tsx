@@ -1,13 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { ShortcutInput } from "@/components/ShortcutInput";
 import {
-  dragModifierOptions,
+  dragModifiers,
   dragMouseButtonOptions,
   type GlobalShortcutKey,
   globalShortcutKeys,
   type ShortcutKey,
   shortcutItems,
-  wheelResizeModifierOptions,
+  wheelModifiers,
 } from "@/components/settings/shared";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ToggleGroup";
 import { cn } from "@/lib/utils";
@@ -22,8 +22,6 @@ interface ShortcutsSectionProps {
   settings: Settings;
   shortcutError: string | null;
   globalShortcutRegistration: Record<GlobalShortcutKey, boolean | null>;
-  activeWheelResizeModifier: (typeof wheelResizeModifierOptions)[number];
-  activeWheelOpacityModifier: (typeof wheelResizeModifierOptions)[number];
   updateShortcut: (key: ShortcutKey, value: string) => void;
   updateSettings: (patch: SettingsPatch) => void;
 }
@@ -32,28 +30,52 @@ export function ShortcutsSection({
   settings,
   shortcutError,
   globalShortcutRegistration,
-  activeWheelResizeModifier,
-  activeWheelOpacityModifier,
   updateShortcut,
   updateSettings,
 }: ShortcutsSectionProps) {
   const { t } = useTranslation("settings");
-  const modifierLabel = (labelKey: string) => t(labelKey);
-  const activeDragModifier = dragModifierOptions.find(
-    (option) => option.value === settings.dragModifier,
-  );
-  const dragMethods = [
-    ...dragMouseButtonOptions
-      .filter((option) => settings.dragMouseButtons.includes(option.value))
-      .map((option) => t(option.labelKey)),
-    ...(activeDragModifier
-      ? [
-          t("shortcuts.dragButton.withLeft", {
-            modifier: modifierLabel(activeDragModifier.labelKey),
-          }),
-        ]
-      : []),
-  ];
+  const modifierLabel = (modifier: string) =>
+    t(`shortcuts.modifiers.${modifier}`);
+  const wheelMethods = (modifier: WheelResizeModifier) =>
+    modifier === "none"
+      ? []
+      : [t("shortcuts.wheelWith", { modifier: modifierLabel(modifier) })];
+  const interactions = [
+    {
+      key: "resize",
+      methods: wheelMethods(settings.wheelResizeModifier),
+    },
+    {
+      key: "opacity",
+      methods: wheelMethods(settings.wheelOpacityModifier),
+    },
+    {
+      key: "move",
+      methods: [
+        t("shortcuts.currentInteractions.methods.edgeDrag"),
+        ...dragMouseButtonOptions
+          .filter((option) => settings.dragMouseButtons.includes(option.value))
+          .map((option) =>
+            t(`shortcuts.currentInteractions.methods.${option.value}Drag`),
+          ),
+        ...(settings.dragModifier === "none"
+          ? []
+          : [
+              t("shortcuts.currentInteractions.methods.leftDrag", {
+                modifier: modifierLabel(settings.dragModifier),
+              }),
+            ]),
+      ],
+    },
+    {
+      key: "alwaysOnTop",
+      methods: [t("shortcuts.currentInteractions.methods.middleClick")],
+    },
+    {
+      key: "menu",
+      methods: [t("shortcuts.currentInteractions.methods.rightClick")],
+    },
+  ].filter((interaction) => interaction.methods.length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,25 +148,23 @@ export function ShortcutsSection({
         <ToggleGroup
           type="single"
           aria-label={t("shortcuts.wheelResize.label")}
-          value={settings.wheelResizeModifier}
-          onValueChange={(value) => {
-            if (value)
-              updateSettings({
-                wheelResizeModifier: value as WheelResizeModifier,
-              });
-          }}
+          value={
+            settings.wheelResizeModifier === "none"
+              ? ""
+              : settings.wheelResizeModifier
+          }
+          onValueChange={(value) =>
+            updateSettings({
+              wheelResizeModifier: (value || "none") as WheelResizeModifier,
+            })
+          }
         >
-          {wheelResizeModifierOptions.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
-              {modifierLabel(option.labelKey)}
+          {wheelModifiers.map((modifier) => (
+            <ToggleGroupItem key={modifier} value={modifier}>
+              {modifierLabel(modifier)}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <div className="text-xs text-muted-foreground">
-          {t("shortcuts.wheelResize.description", {
-            modifier: modifierLabel(activeWheelResizeModifier.labelKey),
-          })}
-        </div>
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
@@ -154,25 +174,23 @@ export function ShortcutsSection({
         <ToggleGroup
           type="single"
           aria-label={t("shortcuts.wheelOpacity.label")}
-          value={settings.wheelOpacityModifier}
-          onValueChange={(value) => {
-            if (value)
-              updateSettings({
-                wheelOpacityModifier: value as WheelResizeModifier,
-              });
-          }}
+          value={
+            settings.wheelOpacityModifier === "none"
+              ? ""
+              : settings.wheelOpacityModifier
+          }
+          onValueChange={(value) =>
+            updateSettings({
+              wheelOpacityModifier: (value || "none") as WheelResizeModifier,
+            })
+          }
         >
-          {wheelResizeModifierOptions.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
-              {modifierLabel(option.labelKey)}
+          {wheelModifiers.map((modifier) => (
+            <ToggleGroupItem key={modifier} value={modifier}>
+              {modifierLabel(modifier)}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <div className="text-xs text-muted-foreground">
-          {t("shortcuts.wheelOpacity.description", {
-            modifier: modifierLabel(activeWheelOpacityModifier.labelKey),
-          })}
-        </div>
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
@@ -200,53 +218,36 @@ export function ShortcutsSection({
         <ToggleGroup
           type="single"
           aria-label={t("shortcuts.dragButton.modifiers")}
-          value={activeDragModifier?.value ?? ""}
+          value={settings.dragModifier === "none" ? "" : settings.dragModifier}
           onValueChange={(value) =>
             updateSettings({
               dragModifier: (value || "none") as DragModifier,
             })
           }
         >
-          {dragModifierOptions.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
+          {dragModifiers.map((modifier) => (
+            <ToggleGroupItem key={modifier} value={modifier}>
               {t("shortcuts.dragButton.withLeft", {
-                modifier: modifierLabel(option.labelKey),
+                modifier: modifierLabel(modifier),
               })}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <div className="text-xs text-muted-foreground">
-          {dragMethods.length > 0
-            ? t("shortcuts.dragButton.description")
-            : t("shortcuts.dragButton.edgeOnly")}
-        </div>
       </div>
 
       <div className="flex flex-col gap-1 rounded-md border border-border bg-background/60 p-3">
         <div className="text-xs font-medium text-muted-foreground">
           {t("shortcuts.currentInteractions.label")}
         </div>
-        <div className="text-xs text-muted-foreground">
-          {t("shortcuts.currentInteractions.resize", {
-            modifier: modifierLabel(activeWheelResizeModifier.labelKey),
-          })}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {t("shortcuts.currentInteractions.opacity", {
-            modifier: modifierLabel(activeWheelOpacityModifier.labelKey),
-          })}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {t("shortcuts.currentInteractions.alwaysOnTop")}
-        </div>
-        {dragMethods.map((method) => (
-          <div key={method} className="text-xs text-muted-foreground">
-            {t("shortcuts.currentInteractions.move", { method })}
+        {interactions.map((interaction) => (
+          <div key={interaction.key} className="text-xs text-muted-foreground">
+            {t(`shortcuts.currentInteractions.${interaction.key}`, {
+              methods: interaction.methods.join(
+                t("shortcuts.currentInteractions.separator"),
+              ),
+            })}
           </div>
         ))}
-        <div className="text-xs text-muted-foreground">
-          {t("shortcuts.currentInteractions.rightClick")}
-        </div>
       </div>
     </div>
   );

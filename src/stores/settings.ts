@@ -3,7 +3,7 @@ import defaults from "@/settings.defaults.json";
 
 type Theme = "light" | "dark" | "system";
 export type EditorFontFamily = "system" | "serif" | "mono";
-export type WheelResizeModifier = "alt" | "ctrl" | "shift" | "meta";
+export type WheelResizeModifier = "none" | "alt" | "ctrl" | "shift" | "meta";
 export type WindowsGlassEffect = "none" | "mica" | "acrylic" | "blur";
 export type DragMouseButton = "middle" | "right";
 export type DragModifier = "none" | "alt" | "ctrl" | "meta";

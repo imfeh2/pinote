@@ -5,7 +5,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { DEFAULT_SETTINGS, type Settings } from "@/stores/settings";
 import { ShortcutsSection } from "./ShortcutsSection";
-import { wheelResizeModifierOptions } from "./shared";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -30,8 +29,6 @@ async function render(settings: Partial<Settings>) {
           showAllHiddenWindows: true,
           toggleVisibleWindows: true,
         }}
-        activeWheelResizeModifier={wheelResizeModifierOptions[0]}
-        activeWheelOpacityModifier={wheelResizeModifierOptions[1]}
         updateShortcut={() => {}}
         updateSettings={update}
       />,
@@ -94,15 +91,49 @@ test("clicking the chosen drag modifier turns modifier dragging off", async () =
   expect(update).toHaveBeenLastCalledWith({ dragModifier: "ctrl" });
   await click(item(modifiers, alt));
   expect(update).toHaveBeenLastCalledWith({ dragModifier: "none" });
-  await render({ dragModifier: "none", dragMouseButtons: [] });
-  expect(container.textContent).toContain("shortcuts.dragButton.edgeOnly");
-  expect(container.textContent).not.toContain(
-    "shortcuts.currentInteractions.move",
-  );
 });
 
-test("a wheel modifier stays selected when clicked again", async () => {
-  await render({ wheelResizeModifier: "alt" });
+test("clicking the chosen wheel modifier turns the wheel action off", async () => {
+  await render({ wheelResizeModifier: "alt", wheelOpacityModifier: "ctrl" });
   await click(item("shortcuts.wheelResize.label", "shortcuts.modifiers.alt"));
-  expect(update).not.toHaveBeenCalled();
+  expect(update).toHaveBeenLastCalledWith({ wheelResizeModifier: "none" });
+  await click(
+    item("shortcuts.wheelOpacity.label", "shortcuts.modifiers.shift"),
+  );
+  expect(update).toHaveBeenLastCalledWith({ wheelOpacityModifier: "shift" });
+});
+
+function interactions() {
+  return Array.from(
+    container.querySelectorAll("div"),
+    (element) => element.textContent ?? "",
+  ).filter(
+    (text) =>
+      text.startsWith("shortcuts.currentInteractions.") &&
+      !text.startsWith("shortcuts.currentInteractions.label"),
+  );
+}
+
+test("current interactions list every way to reach each action", async () => {
+  await render({
+    wheelResizeModifier: "alt",
+    wheelOpacityModifier: "none",
+    dragMouseButtons: ["middle", "right"],
+    dragModifier: "ctrl",
+  });
+  expect(interactions()).toEqual([
+    "shortcuts.currentInteractions.resize:shortcuts.wheelWith:shortcuts.modifiers.alt",
+    "shortcuts.currentInteractions.move:shortcuts.currentInteractions.methods.edgeDragshortcuts.currentInteractions.separatorshortcuts.currentInteractions.methods.middleDragshortcuts.currentInteractions.separatorshortcuts.currentInteractions.methods.rightDragshortcuts.currentInteractions.separatorshortcuts.currentInteractions.methods.leftDrag:shortcuts.modifiers.ctrl",
+    "shortcuts.currentInteractions.alwaysOnTop:shortcuts.currentInteractions.methods.middleClick",
+    "shortcuts.currentInteractions.menu:shortcuts.currentInteractions.methods.rightClick",
+  ]);
+  await render({
+    wheelResizeModifier: "none",
+    wheelOpacityModifier: "none",
+    dragMouseButtons: [],
+    dragModifier: "none",
+  });
+  expect(interactions()[0]).toBe(
+    "shortcuts.currentInteractions.move:shortcuts.currentInteractions.methods.edgeDrag",
+  );
 });

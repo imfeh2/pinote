@@ -52,7 +52,7 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
         "theme" => &["system", "light", "dark"],
         "noteGlassEffectWindows" => &["none", "mica", "acrylic", "blur"],
         "editorFontFamily" => &["system", "serif", "mono"],
-        "wheelResizeModifier" | "wheelOpacityModifier" => &["alt", "ctrl", "shift", "meta"],
+        "wheelResizeModifier" | "wheelOpacityModifier" => &["none", "alt", "ctrl", "shift", "meta"],
         "dragModifier" => &["none", "alt", "ctrl", "meta"],
         _ => &[],
     };
@@ -361,6 +361,8 @@ mod tests {
             json!({"dragMouseButtons": ["right", "middle"]}),
             json!({"dragModifier": "none"}),
             json!({"dragModifier": "meta"}),
+            json!({"wheelResizeModifier": "none"}),
+            json!({"wheelOpacityModifier": "none"}),
         ] {
             assert!(store.update(patch(value)).is_ok());
         }

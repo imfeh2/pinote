@@ -1,9 +1,4 @@
-import type {
-  DragModifier,
-  DragMouseButton,
-  WheelResizeModifier,
-  WindowsGlassEffect,
-} from "@/stores/settings";
+import type { DragMouseButton, WindowsGlassEffect } from "@/stores/settings";
 
 export const globalShortcutKeys = [
   "newNote",
@@ -50,15 +45,7 @@ export const fontFamilyOptions = [
   { value: "mono", labelKey: "appearance.typography.fontFamilyOptions.mono" },
 ] as const;
 
-export const wheelResizeModifierOptions: Array<{
-  value: WheelResizeModifier;
-  labelKey: string;
-}> = [
-  { value: "alt", labelKey: "shortcuts.modifiers.alt" },
-  { value: "ctrl", labelKey: "shortcuts.modifiers.ctrl" },
-  { value: "shift", labelKey: "shortcuts.modifiers.shift" },
-  { value: "meta", labelKey: "shortcuts.modifiers.meta" },
-];
+export const wheelModifiers = ["alt", "ctrl", "shift", "meta"] as const;
 
 export const dragMouseButtonOptions: Array<{
   value: DragMouseButton;
@@ -68,14 +55,7 @@ export const dragMouseButtonOptions: Array<{
   { value: "right", labelKey: "shortcuts.mouseButtons.right" },
 ];
 
-export const dragModifierOptions: Array<{
-  value: Exclude<DragModifier, "none">;
-  labelKey: string;
-}> = [
-  { value: "alt", labelKey: "shortcuts.modifiers.alt" },
-  { value: "ctrl", labelKey: "shortcuts.modifiers.ctrl" },
-  { value: "meta", labelKey: "shortcuts.modifiers.meta" },
-];
+export const dragModifiers = ["alt", "ctrl", "meta"] as const;
 
 export const windowsGlassEffectOptions: Array<{
   value: WindowsGlassEffect;

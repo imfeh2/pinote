@@ -158,29 +158,33 @@ export default {
     },
     wheelResize: {
       label: "Resize",
-      description:
-        "{{modifier}} + Wheel resizes the window around the pointer.",
     },
     wheelOpacity: {
       label: "See-through",
-      description:
-        "{{modifier}} + Wheel adjusts see-through level. Text stays readable.",
     },
     dragButton: {
       label: "Move",
       mouseButtons: "Mouse buttons that move the window",
       modifiers: "Modifier for moving the window with the left button",
       withLeft: "{{modifier}} + Left",
-      description: "Drag with the selected buttons to move the window.",
-      edgeOnly: "Drag the top edge of the note to move the window.",
     },
+    wheelWith: "{{modifier}} + Wheel",
     currentInteractions: {
       label: "Current interactions",
-      resize: "{{modifier}} + Wheel: Resize around the pointer",
-      opacity: "{{modifier}} + Wheel: Adjust see-through",
-      alwaysOnTop: "Middle click: Keep note on top or release it",
-      move: "{{method}} drag: Move window",
-      rightClick: "Right click: Open menu",
+      separator: ", ",
+      resize: "Resize around the pointer: {{methods}}",
+      opacity: "Adjust see-through: {{methods}}",
+      move: "Move window: {{methods}}",
+      alwaysOnTop: "Keep note on top or release it: {{methods}}",
+      menu: "Open menu: {{methods}}",
+      methods: {
+        edgeDrag: "Drag the top edge",
+        middleDrag: "Middle drag",
+        rightDrag: "Right drag",
+        leftDrag: "{{modifier}} + Left drag",
+        middleClick: "Middle click",
+        rightClick: "Right click",
+      },
     },
   },
   history: {

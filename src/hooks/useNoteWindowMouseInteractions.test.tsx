@@ -5,7 +5,11 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { useNoteWindowMouseInteractions } from "@/hooks/useNoteWindowMouseInteractions";
-import type { DragModifier, DragMouseButton } from "@/stores/settings";
+import type {
+  DragModifier,
+  DragMouseButton,
+  WheelResizeModifier,
+} from "@/stores/settings";
 
 const mocks = vi.hoisted(() => ({
   startDragging: vi.fn(),
@@ -30,9 +34,11 @@ const appWindow = {
 function Harness({
   dragMouseButtons,
   dragModifier,
+  wheelResizeModifier,
 }: {
   dragMouseButtons: DragMouseButton[];
   dragModifier: DragModifier;
+  wheelResizeModifier: WheelResizeModifier;
 }) {
   useNoteWindowMouseInteractions({
     appWindow,
@@ -43,7 +49,7 @@ function Harness({
     dragMouseButtons,
     dragModifier,
     wheelOpacityModifier: "ctrl",
-    wheelResizeModifier: "alt",
+    wheelResizeModifier,
     noteOpacityRef: { current: 1 },
     noteReadOnlyRef: { current: false },
     noteScrollTopRef: { current: 0 },
@@ -59,6 +65,7 @@ let cleanup = async () => {};
 async function render(
   dragMouseButtons: DragMouseButton[],
   dragModifier: DragModifier,
+  wheelResizeModifier: WheelResizeModifier = "alt",
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const container = document.createElement("div");
@@ -69,6 +76,7 @@ async function render(
       <Harness
         dragMouseButtons={dragMouseButtons}
         dragModifier={dragModifier}
+        wheelResizeModifier={wheelResizeModifier}
       />,
     ),
   );
@@ -159,4 +167,22 @@ test("with no drag buttons, middle click still pins and right click is left alon
   expect(mocks.toggleAlwaysOnTop).toHaveBeenCalledOnce();
   const right = mouse("mousedown", { button: 2 });
   expect(right.defaultPrevented).toBe(false);
+});
+
+test("a wheel action set to no modifier leaves the wheel alone", async () => {
+  const wheel = () => {
+    const event = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: -100,
+    });
+    Object.defineProperty(event, "altKey", { value: true });
+    document.body.dispatchEvent(event);
+    return event;
+  };
+  await render(["middle"], "alt", "alt");
+  expect(wheel().defaultPrevented).toBe(true);
+  await cleanup();
+  await render(["middle"], "alt", "none");
+  expect(wheel().defaultPrevented).toBe(false);
 });
