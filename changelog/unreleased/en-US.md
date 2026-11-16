@@ -2,4 +2,4 @@
 - Added commands matching the global shortcuts, such as `pinote new` and `pinote toggle`, so they can be bound as shortcuts in the desktop environment, for example on Wayland where global shortcuts are unavailable. Run `pinote help` to see all commands.
 - Added Alt + left drag to move note windows more smoothly. The modifier can be changed to Ctrl or Meta in Settings, or turned off. Middle drag and right drag can now be turned on together.
 - Resizing and adjusting see-through with the wheel can now be turned off in Settings.
-- Added Keep on top to the note menu. Which items the menu shows and their order can be changed under Context menu in Settings, where Switch theme and Show all hidden notes can also be added.
+- Added Keep on top to the note menu. Which items the menu shows and their order can be changed under Context menu in Settings, where Switch theme and Show all hidden notes can also be added. The default order now groups items by kind, and the switch for matching note see-through in menus has moved to this page.

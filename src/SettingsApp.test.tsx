@@ -262,7 +262,6 @@ test("navigation and settings follow the grouped order", async () => {
     settingsZh.window.launchAtStartup,
     settingsZh.window.notesDirectory.label,
     settingsZh.preferences.confirmNoteDeletion,
-    settingsZh.window.contextMenuOpacity.label,
     settingsZh.window.explorerMenu.label,
     settingsZh.window.defaultOpener.label,
   ]);
@@ -325,9 +324,9 @@ test("preferences keeps directory selection, busy state, opening and save errors
   expect(container.textContent).toContain(settingsZh.errors.unknown);
 });
 
-test("preferences keeps menu opacity persistence and failure feedback", async () => {
-  await selectPage("偏好");
-  const toggle = getSwitch(settingsZh.window.contextMenuOpacity.label);
+test("context menu page keeps menu opacity persistence and failure feedback", async () => {
+  await selectPage("右键菜单");
+  const toggle = getSwitch(settingsZh.contextMenu.opacity);
   const current = mocks.settings.contextMenuFollowNoteOpacity;
   mocks.update.mockRejectedValueOnce(new Error("disk full"));
   await act(async () => toggle.click());

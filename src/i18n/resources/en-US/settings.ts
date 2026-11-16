@@ -45,6 +45,7 @@ export default {
   },
   contextMenu: {
     label: "Menu items",
+    opacity: "Match note see-through",
     reorder: "Move {{item}}",
     minimizeHidden: "Not shown while notes are hidden from the taskbar",
     dragInstructions:
@@ -141,10 +142,6 @@ export default {
       applyFailed: "Setting saved. Could not update taskbar visibility.",
       label: "Hide notes from taskbar",
       description: "Notes won't appear on the taskbar.",
-    },
-    contextMenuOpacity: {
-      label: "Match note see-through in menus",
-      description: "Match each note's see-through level.",
     },
     explorerMenu: {
       label: 'Add "Open with Pinote"',

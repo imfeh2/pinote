@@ -24,6 +24,7 @@ export default {
   },
   contextMenu: {
     label: "菜单项",
+    opacity: "跟随便签通透度",
     reorder: "调整「{{item}}」的位置",
     minimizeHidden: "便签不显示在任务栏时，菜单里不显示这一项",
     dragInstructions:
@@ -111,10 +112,6 @@ export default {
       applyFailed: "设置已保存，但未能更新窗口的任务栏状态。",
       label: "在任务栏中隐藏便签",
       description: "便签不会显示在任务栏中。",
-    },
-    contextMenuOpacity: {
-      label: "菜单跟随便签通透度",
-      description: "跟随当前便签的通透度。",
     },
     explorerMenu: {
       label: "添加“使用 Pinote 打开”",

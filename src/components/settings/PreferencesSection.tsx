@@ -159,24 +159,6 @@ export function PreferencesSection({
       <div className="flex items-center justify-between rounded-md border border-border bg-background/60 p-3">
         <div className="flex flex-col gap-1">
           <div className="text-xs font-medium text-muted-foreground">
-            {t("window.contextMenuOpacity.label")}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {t("window.contextMenuOpacity.description")}
-          </div>
-        </div>
-        <SettingsSwitch
-          checked={settings.contextMenuFollowNoteOpacity}
-          label={t("window.contextMenuOpacity.label")}
-          onCheckedChange={(checked) =>
-            updateSettings({ contextMenuFollowNoteOpacity: checked })
-          }
-        />
-      </div>
-
-      <div className="flex items-center justify-between rounded-md border border-border bg-background/60 p-3">
-        <div className="flex flex-col gap-1">
-          <div className="text-xs font-medium text-muted-foreground">
             {t("window.explorerMenu.label")}
           </div>
           <div className="text-[11px] text-muted-foreground">

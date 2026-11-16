@@ -200,6 +200,18 @@ export function ContextMenuSection({
           </SortableContext>
         </DndContext>
       </div>
+      <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/60 p-3">
+        <div className="text-xs font-medium text-muted-foreground">
+          {t("contextMenu.opacity")}
+        </div>
+        <SettingsSwitch
+          checked={settings.contextMenuFollowNoteOpacity}
+          label={t("contextMenu.opacity")}
+          onCheckedChange={(checked) =>
+            void updateSettings({ contextMenuFollowNoteOpacity: checked })
+          }
+        />
+      </div>
     </div>
   );
 }
