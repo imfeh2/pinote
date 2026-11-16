@@ -1,4 +1,5 @@
 import type { LanguagePreference } from "@/i18n/locale";
+import type { NoteContextMenuAction } from "@/lib/contextMenuApi";
 import defaults from "@/settings.defaults.json";
 
 type Theme = "light" | "dark" | "system";
@@ -7,6 +8,11 @@ export type WheelResizeModifier = "none" | "alt" | "ctrl" | "shift" | "meta";
 export type WindowsGlassEffect = "none" | "mica" | "acrylic" | "blur";
 export type DragMouseButton = "middle" | "right";
 export type DragModifier = "none" | "alt" | "ctrl" | "meta";
+
+export interface ContextMenuItem {
+  action: NoteContextMenuAction;
+  visible: boolean;
+}
 
 export interface Settings {
   language: LanguagePreference;
@@ -26,6 +32,7 @@ export interface Settings {
   wheelOpacityModifier: WheelResizeModifier;
   dragMouseButtons: DragMouseButton[];
   dragModifier: DragModifier;
+  contextMenuItems: ContextMenuItem[];
   lastUpdateCheckAt?: string;
   pendingUpdatePromptVersion?: string;
   dismissedUpdateVersion?: string;

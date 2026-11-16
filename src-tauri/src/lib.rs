@@ -816,6 +816,11 @@ async fn show_settings_window(
 }
 
 #[tauri::command]
+async fn show_all_hidden_note_windows(app: tauri::AppHandle) {
+    window::show_all_hidden_windows(&app);
+}
+
+#[tauri::command]
 async fn open_note_window(
     app: tauri::AppHandle,
     options: Option<OpenNoteWindowOptions>,
@@ -1073,6 +1078,7 @@ pub fn run() {
             note_history::remove_history_records,
             save_note_preferences,
             show_settings_window,
+            show_all_hidden_note_windows,
             open_note_window,
             create_note_window,
             read_note,

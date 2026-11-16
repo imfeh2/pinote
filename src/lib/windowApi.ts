@@ -71,6 +71,10 @@ export async function openSettingsWindow(section?: string) {
   }
 }
 
+export async function showAllHiddenNoteWindows() {
+  await invoke("show_all_hidden_note_windows");
+}
+
 export async function getOpenWithPinoteEnabled() {
   return invoke<boolean>("get_open_with_pinote_enabled");
 }

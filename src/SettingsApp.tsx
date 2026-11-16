@@ -11,6 +11,7 @@ import { AlertDialog } from "@/components/AlertDialog";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
 import { ChangelogSection } from "@/components/settings/ChangelogSection";
+import { ContextMenuSection } from "@/components/settings/ContextMenuSection";
 import { HistorySection } from "@/components/settings/HistorySection";
 import { LegacyNotesDialog } from "@/components/settings/LegacyNotesDialog";
 import { PreferencesSection } from "@/components/settings/PreferencesSection";
@@ -868,6 +869,8 @@ export function SettingsApp() {
         updateShortcut={updateShortcut}
         updateSettings={updateSettings}
       />
+    ) : activeSection === "contextMenu" ? (
+      <ContextMenuSection settings={settings} updateSettings={updateSettings} />
     ) : activeSection === "changelog" ? (
       <ChangelogSection appVersion={appVersion} />
     ) : (

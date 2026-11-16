@@ -36,7 +36,7 @@ Pinote checks for updates when it starts.
 - **File Sync** — Detect external file changes and reload them when it is safe.
 - **Window States** — Set always-on-top, read-only, opacity, position, size, and visibility for each note.
 - **Window Shortcuts** — Create notes, restore hidden notes, show all hidden notes, or toggle the current visible set.
-- **Custom Controls** — Change keyboard shortcuts, wheel modifiers, and the mouse button used to move windows.
+- **Custom Controls** — Change keyboard shortcuts, wheel modifiers, the mouse buttons used to move windows, and which items the note menu shows and in what order.
 - **Session Restore** — Restore window state, scroll position, and the last visible set after restarting Pinote.
 - **History Search** — Find and reopen previous notes by path or content.
 - **Appearance** — Choose the interface language and theme, then adjust typography, spacing, and glass effects.

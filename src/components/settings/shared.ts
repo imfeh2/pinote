@@ -106,6 +106,11 @@ export const sections = [
     descriptionKey: "sections.shortcuts.description",
   },
   {
+    id: "contextMenu",
+    labelKey: "sections.contextMenu.label",
+    descriptionKey: "sections.contextMenu.description",
+  },
+  {
     id: "history",
     labelKey: "sections.history.label",
     descriptionKey: "sections.history.description",

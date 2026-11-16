@@ -29,6 +29,10 @@ export default {
       label: "Shortcuts",
       description: "Keyboard shortcuts and mouse actions.",
     },
+    contextMenu: {
+      label: "Context menu",
+      description: "Items and order of the note menu.",
+    },
     history: {
       label: "History",
       description: "Find and reopen notes.",
@@ -37,6 +41,32 @@ export default {
     about: {
       label: "About",
       description: "Version, updates, and links.",
+    },
+  },
+  contextMenu: {
+    label: "Menu items",
+    reorder: "Move {{item}}",
+    minimizeHidden: "Not shown while notes are hidden from the taskbar",
+    dragInstructions:
+      "Press Space or Enter to pick up a menu item, use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel.",
+    announcements: {
+      start: "Picked up {{item}}",
+      over: "{{item}} moved to the place of {{target}}",
+      end: "Dropped {{item}}",
+      cancel: "Stopped moving {{item}}",
+    },
+    items: {
+      "new-note": "New note",
+      "open-settings": "Settings",
+      "minimize-window": "Minimize",
+      "toggle-maximize": "Maximize / Restore",
+      "toggle-always-on-top": "Keep on top / Stop",
+      "toggle-read-only": "Read-only on / off",
+      "toggle-theme": "Switch theme",
+      "show-all-hidden-windows": "Show all hidden notes",
+      "hide-window": "Hide",
+      "close-window": "Close",
+      "delete-note": "Delete",
     },
   },
   preferences: {

@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { type ContextMenuItem, DEFAULT_SETTINGS } from "@/stores/settings";
 import ContextMenuApp from "./ContextMenuApp";
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   workHeight: 1080,
   contentHeight: 240,
   hideTaskbar: true,
+  items: [] as ContextMenuItem[],
   emitAction: vi.fn(async () => {}),
 }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -34,7 +36,10 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 vi.mock("@/hooks/useSettings", () => ({
   useSettings: () => ({
-    settings: { hideNoteWindowsFromTaskbar: mocks.hideTaskbar },
+    settings: {
+      hideNoteWindowsFromTaskbar: mocks.hideTaskbar,
+      contextMenuItems: mocks.items,
+    },
   }),
 }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => {} }));
@@ -59,6 +64,7 @@ beforeEach(() => {
   mocks.workHeight = 1080;
   mocks.contentHeight = 240;
   mocks.hideTaskbar = true;
+  mocks.items = DEFAULT_SETTINGS.contextMenuItems;
   observers.length = 0;
   vi.stubGlobal(
     "ResizeObserver",
@@ -100,7 +106,7 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-async function renderMenu() {
+async function renderMenu(alwaysOnTop = false) {
   await act(async () =>
     root.render(
       <ContextMenuApp
@@ -112,6 +118,7 @@ async function renderMenu() {
         noteOpacity={1}
         noteReadOnly={false}
         maximized={false}
+        alwaysOnTop={alwaysOnTop}
       />,
     ),
   );
@@ -153,18 +160,13 @@ test.each([
 
 test("all menu actions share layout and interaction styles while retaining their actions", async () => {
   mocks.hideTaskbar = false;
+  mocks.items = DEFAULT_SETTINGS.contextMenuItems.map((item) => ({
+    ...item,
+    visible: true,
+  }));
   const panel = await renderMenu();
   const buttons = Array.from(panel.querySelectorAll("button")).slice(1);
-  const actions = [
-    "new-note",
-    "open-settings",
-    "minimize-window",
-    "toggle-maximize",
-    "toggle-read-only",
-    "hide-window",
-    "close-window",
-    "delete-note",
-  ];
+  const actions = mocks.items.map((item) => item.action);
   const colors = new Set([
     "text-foreground",
     "hover:text-accent-foreground",
@@ -202,4 +204,38 @@ test("remeasures changing content height", async () => {
   expect(mocks.setSize).toHaveBeenLastCalledWith(
     expect.objectContaining({ height: 280 }),
   );
+});
+
+test("menu shows the chosen items in the chosen order", async () => {
+  mocks.hideTaskbar = true;
+  mocks.items = [
+    { action: "delete-note", visible: true },
+    { action: "toggle-always-on-top", visible: true },
+    { action: "minimize-window", visible: true },
+    { action: "new-note", visible: false },
+    { action: "show-all-hidden-windows", visible: true },
+  ];
+  const labels = async (alwaysOnTop: boolean) =>
+    Array.from(
+      (await renderMenu(alwaysOnTop)).querySelectorAll("button"),
+      (button) => button.textContent,
+    ).slice(1);
+  expect(await labels(false)).toEqual([
+    "deleteNote",
+    "enableAlwaysOnTop",
+    "showAllHiddenWindows",
+  ]);
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  expect(await labels(true)).toContain("disableAlwaysOnTop");
+});
+
+test("menu without items shows only the note title", async () => {
+  mocks.items = DEFAULT_SETTINGS.contextMenuItems.map((item) => ({
+    ...item,
+    visible: false,
+  }));
+  const panel = await renderMenu();
+  expect(panel.querySelectorAll("button")).toHaveLength(1);
+  expect(panel.querySelector(".bg-border")).toBeNull();
 });

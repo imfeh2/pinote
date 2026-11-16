@@ -73,6 +73,7 @@ function getContextMenuContext() {
       : 1,
     noteReadOnly: params.get("noteReadOnly") === "true",
     maximized: params.get("maximized") === "true",
+    alwaysOnTop: params.get("alwaysOnTop") === "true",
   };
 }
 

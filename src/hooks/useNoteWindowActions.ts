@@ -13,7 +13,11 @@ import {
 } from "@/lib/contextMenuApi";
 import { logError, logInfo } from "@/lib/logger";
 import { shortcutMatchesEvent } from "@/lib/shortcuts";
-import { openNoteWindow, openSettingsWindow } from "@/lib/windowApi";
+import {
+  openNoteWindow,
+  openSettingsWindow,
+  showAllHiddenNoteWindows,
+} from "@/lib/windowApi";
 import type { Settings } from "@/stores/settings";
 
 interface UseNoteWindowActionsOptions {
@@ -244,8 +248,24 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
         toggleMaximizeWindow();
         return;
       }
+      if (action === "toggle-always-on-top") {
+        void toggleAlwaysOnTop();
+        return;
+      }
       if (action === "toggle-read-only") {
         toggleReadOnly();
+        return;
+      }
+      if (action === "toggle-theme") {
+        toggleTheme();
+        return;
+      }
+      if (action === "show-all-hidden-windows") {
+        showAllHiddenNoteWindows().catch((error) => {
+          logError("note-window", "show_all_hidden_windows_failed", error, {
+            windowId: windowLabel,
+          });
+        });
         return;
       }
       if (action === "hide-window") {
@@ -286,8 +306,10 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
     minimizeWindow,
     openNote,
     openSettings,
+    toggleAlwaysOnTop,
     toggleMaximizeWindow,
     toggleReadOnly,
+    toggleTheme,
     windowLabel,
   ]);
 

@@ -240,7 +240,16 @@ test("navigation and settings follow the grouped order", async () => {
       container.querySelectorAll("aside button"),
       (button) => button.textContent,
     ),
-  ).toEqual(["外观", "偏好", "窗口", "快捷键", "历史记录", "更新日志", "关于"]);
+  ).toEqual([
+    "外观",
+    "偏好",
+    "窗口",
+    "快捷键",
+    "右键菜单",
+    "历史记录",
+    "更新日志",
+    "关于",
+  ]);
   const labels = () =>
     Array.from(
       container.querySelectorAll(

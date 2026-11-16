@@ -28,6 +28,17 @@ const MENU_MAX_WIDTH = 360;
 const MENU_ACTION_CLASS_NAME =
   "flex h-auto items-center justify-start whitespace-nowrap rounded border-0 px-2 py-1.5 text-left font-normal text-foreground transition-colors hover:text-accent-foreground";
 
+const staticActionLabelKeys = {
+  "new-note": "newNote",
+  "open-settings": "openSettings",
+  "minimize-window": "minimizeWindow",
+  "toggle-theme": "toggleTheme",
+  "show-all-hidden-windows": "showAllHiddenWindows",
+  "hide-window": "hideWindow",
+  "close-window": "closeWindow",
+  "delete-note": "deleteNote",
+} as const;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -46,6 +57,7 @@ function ContextMenuApp({
   noteOpacity,
   noteReadOnly,
   maximized,
+  alwaysOnTop,
 }: NoteContextMenuContext) {
   const { t } = useTranslation("contextMenu");
   useTheme();
@@ -69,6 +81,7 @@ function ContextMenuApp({
     noteOpacity,
     noteReadOnly,
     maximized,
+    alwaysOnTop,
   });
   const menuSurfaceOpacity = settings.contextMenuFollowNoteOpacity
     ? clamp(context.noteOpacity, 0.2, 1)
@@ -159,6 +172,36 @@ function ContextMenuApp({
       }
     };
   }, [menuWindowLabel]);
+
+  const menuActions = useMemo(
+    () =>
+      settings.contextMenuItems
+        .filter(
+          (item) =>
+            item.visible &&
+            !(
+              item.action === "minimize-window" &&
+              settings.hideNoteWindowsFromTaskbar
+            ),
+        )
+        .map((item) => item.action),
+    [settings.contextMenuItems, settings.hideNoteWindowsFromTaskbar],
+  );
+
+  const actionLabel = (action: NoteContextMenuAction) => {
+    if (action === "toggle-maximize") {
+      return context.maximized ? t("restoreWindow") : t("maximizeWindow");
+    }
+    if (action === "toggle-always-on-top") {
+      return context.alwaysOnTop
+        ? t("disableAlwaysOnTop")
+        : t("enableAlwaysOnTop");
+    }
+    if (action === "toggle-read-only") {
+      return context.noteReadOnly ? t("disableReadOnly") : t("enableReadOnly");
+    }
+    return t(staticActionLabelKeys[action]);
+  };
 
   const title = context.noteId;
   const titleShouldScroll = titleScrollDistance > 0;
@@ -391,71 +434,22 @@ function ContextMenuApp({
               </div>
             </div>
           </button>
-          <div className="my-1 h-px bg-border" />
+          {menuActions.length > 0 && <div className="my-1 h-px bg-border" />}
           <div ref={actionsRef} className="inline-flex w-max flex-col">
-            <Button
-              variant="ghost"
-              onClick={() => dispatchAction("new-note")}
-              className={MENU_ACTION_CLASS_NAME}
-            >
-              {t("newNote")}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => dispatchAction("open-settings")}
-              className={MENU_ACTION_CLASS_NAME}
-            >
-              {t("openSettings")}
-            </Button>
-            {!settings.hideNoteWindowsFromTaskbar && (
+            {menuActions.map((action) => (
               <Button
+                key={action}
                 variant="ghost"
-                onClick={() => dispatchAction("minimize-window")}
-                className={MENU_ACTION_CLASS_NAME}
+                onClick={() => dispatchAction(action)}
+                className={cn(
+                  MENU_ACTION_CLASS_NAME,
+                  action === "delete-note" &&
+                    "text-red-700 hover:text-red-700 [[data-theme=dark]_&]:text-red-400 [[data-theme=dark]_&]:hover:text-red-400",
+                )}
               >
-                {t("minimizeWindow")}
+                {actionLabel(action)}
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              onClick={() => dispatchAction("toggle-maximize")}
-              className={MENU_ACTION_CLASS_NAME}
-            >
-              {context.maximized ? t("restoreWindow") : t("maximizeWindow")}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => dispatchAction("toggle-read-only")}
-              className={MENU_ACTION_CLASS_NAME}
-            >
-              {context.noteReadOnly
-                ? t("disableReadOnly")
-                : t("enableReadOnly")}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => dispatchAction("hide-window")}
-              className={MENU_ACTION_CLASS_NAME}
-            >
-              {t("hideWindow")}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => dispatchAction("close-window")}
-              className={MENU_ACTION_CLASS_NAME}
-            >
-              {t("closeWindow")}
-            </Button>
-            <Button
-              variant="ghost"
-              className={cn(
-                MENU_ACTION_CLASS_NAME,
-                "text-red-700 hover:text-red-700 [[data-theme=dark]_&]:text-red-400 [[data-theme=dark]_&]:hover:text-red-400",
-              )}
-              onClick={() => dispatchAction("delete-note")}
-            >
-              {t("deleteNote")}
-            </Button>
+            ))}
           </div>
         </div>
       </div>

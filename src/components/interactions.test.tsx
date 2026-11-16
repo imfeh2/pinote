@@ -285,6 +285,7 @@ test("menu context changes recalculate title overflow even without ResizeObserve
       noteOpacity: 1,
       noteReadOnly: false,
       maximized: false,
+      alwaysOnTop: false,
     };
     await act(async () => root.render(<ContextMenuApp {...context} />));
     const viewport = container.querySelector<HTMLElement>(

@@ -36,6 +36,19 @@ fn defaults() -> Map<String, Value> {
         .expect("Invalid bundled settings defaults")
 }
 
+fn context_menu_actions(default: &Value) -> Vec<&str> {
+    default
+        .as_array()
+        .expect("Context menu defaults must be an array")
+        .iter()
+        .map(|item| {
+            item["action"]
+                .as_str()
+                .expect("Context menu action must be a string")
+        })
+        .collect()
+}
+
 fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
     if key == "dragMouseButtons" {
         return value.as_array().is_some_and(|buttons| {
@@ -45,6 +58,26 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
                     .is_some_and(|button| ["middle", "right"].contains(&button))
                     && !buttons[..index].contains(button)
             })
+        });
+    }
+    if key == "contextMenuItems" {
+        let actions = context_menu_actions(default);
+        return value.as_array().is_some_and(|items| {
+            items.len() == actions.len()
+                && items.iter().enumerate().all(|(index, item)| {
+                    item.as_object().is_some_and(|item| {
+                        item.len() == 2
+                            && item.get("visible").is_some_and(Value::is_boolean)
+                            && item.get("action").is_some_and(|action| {
+                                action
+                                    .as_str()
+                                    .is_some_and(|action| actions.contains(&action))
+                                    && !items[..index]
+                                        .iter()
+                                        .any(|other| other["action"] == *action)
+                            })
+                    })
+                })
         });
     }
     let choices: &[&str] = match key {
@@ -84,6 +117,19 @@ fn normalize(mut stored: Map<String, Value>) -> Map<String, Value> {
             "dragMouseButtons".into(),
             Value::Array(vec![Value::String(button)]),
         );
+    }
+    if let Some(Value::Array(items)) = stored.get_mut("contextMenuItems") {
+        for item in defaults["contextMenuItems"]
+            .as_array()
+            .expect("Context menu defaults must be an array")
+        {
+            if !items
+                .iter()
+                .any(|stored| stored.get("action") == item.get("action"))
+            {
+                items.push(item.clone());
+            }
+        }
     }
     for (key, default) in &defaults {
         if key == "shortcuts" {
@@ -374,6 +420,56 @@ mod tests {
             json!({"dragMouseButton": "right"}),
         ] {
             assert!(store.update(patch(value)).is_err());
+        }
+    }
+
+    #[test]
+    fn context_menu_items_keep_their_order_and_gain_new_actions() {
+        let directory = storage::test_directory();
+        let path = directory.path().join("settings.json");
+        let defaults = defaults()["contextMenuItems"].clone();
+        let mut reordered = defaults.as_array().unwrap().clone();
+        reordered.reverse();
+        reordered[0]["visible"] = json!(!reordered[0]["visible"].as_bool().unwrap());
+        let missing = reordered.remove(3);
+        fs::write(&path, json!({"contextMenuItems": reordered}).to_string()).unwrap();
+        let store = SettingsStore::new(path.clone()).unwrap();
+        let mut expected = reordered.clone();
+        expected.push(missing);
+        assert_eq!(
+            store.snapshot().settings["contextMenuItems"],
+            json!(expected)
+        );
+        for stored in [
+            json!({"contextMenuItems": [{"action": "unknown", "visible": true}]}),
+            json!({"contextMenuItems": "new-note"}),
+            json!({}),
+        ] {
+            fs::write(&path, stored.to_string()).unwrap();
+            let settings = SettingsStore::new(path.clone())
+                .unwrap()
+                .snapshot()
+                .settings;
+            assert_eq!(settings["contextMenuItems"], defaults);
+        }
+        let store = SettingsStore::new(path).unwrap();
+        assert!(
+            store
+                .update(patch(json!({"contextMenuItems": expected})))
+                .is_ok()
+        );
+        let mut duplicated = defaults.as_array().unwrap().clone();
+        duplicated[1] = duplicated[0].clone();
+        let mut extra_key = defaults.as_array().unwrap().clone();
+        extra_key[0]["label"] = json!("New");
+        let mut shortened = defaults.as_array().unwrap().clone();
+        shortened.pop();
+        for value in [duplicated, extra_key, shortened] {
+            assert!(
+                store
+                    .update(patch(json!({"contextMenuItems": value})))
+                    .is_err()
+            );
         }
     }
 }
