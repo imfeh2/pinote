@@ -1,5 +1,8 @@
-- Fixed note windows on Linux that could turn blank and keep Pinote from quitting. They can now be reloaded or closed.
-- Added commands matching the global shortcuts, such as `pinote new` and `pinote toggle`, so they can be bound as shortcuts in the desktop environment, for example on Wayland where global shortcuts are unavailable. Run `pinote help` to see all commands.
-- Added Alt + left drag to move note windows more smoothly. The modifier can be changed to Ctrl or Meta in Settings, or turned off. Middle drag and right drag can now be turned on together.
-- Resizing and adjusting see-through with the wheel can now be turned off in Settings.
-- Added Keep on top to the note menu. Which items the menu shows and their order can be changed under Context menu in Settings, where Switch theme and Show all hidden notes can also be added. The default order now groups items by kind, and the switch for matching note see-through in menus has moved to this page.
+- Added a Context menu page in Settings for choosing which items the note menu shows and in what order.
+- Added Keep on top to the note menu. Switch theme and Show all hidden notes can also be added. Default menu items are now grouped by kind.
+- Moved the setting for matching note see-through in menus to the Context menu page.
+- Added moving note windows by holding a modifier key and dragging with the left button. The default modifier is Alt; it can be changed to Ctrl or Meta in Settings, or turned off.
+- Middle drag and right drag can now be turned on at the same time.
+- Resizing and adjusting see-through with the wheel can now each be turned off in Settings.
+- Added commands matching the global shortcuts, such as `pinote new` and `pinote toggle`, which can be bound as shortcuts in the system where global shortcuts are unavailable, such as on Wayland. Run `pinote help` to see all commands.
+- Fixed note windows on Linux that could turn blank and prevent Pinote from quitting. Such windows can now be reloaded or closed.
