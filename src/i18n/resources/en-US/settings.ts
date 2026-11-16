@@ -237,6 +237,7 @@ export default {
   },
   changelog: {
     current: "Current",
+    unreleased: "Unreleased",
   },
   about: {
     application: {

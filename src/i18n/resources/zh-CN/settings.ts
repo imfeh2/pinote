@@ -197,6 +197,7 @@ export default {
   },
   changelog: {
     current: "当前版本",
+    unreleased: "未发布",
   },
   about: {
     application: {

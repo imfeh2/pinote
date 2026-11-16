@@ -20,7 +20,6 @@ for (const [path, content] of Object.entries(files)) {
   const match = path.match(/\/changelog\/([^/]+)\/([^/]+)\.md$/);
   if (!match) throw new Error(`Unexpected changelog file: ${path}`);
   const [, version, locale] = match;
-  if (version === "unreleased") continue;
   if (!RELEASE_LOCALES.includes(locale as ReleaseLocale)) {
     throw new Error(`Unknown changelog language: ${path}`);
   }
@@ -30,14 +29,24 @@ for (const [path, content] of Object.entries(files)) {
   });
 }
 
+function completeNotes(version: string, notes: Partial<ReleaseNotes>) {
+  for (const locale of RELEASE_LOCALES) {
+    if (!notes[locale]) {
+      throw new Error(`Missing ${locale} notes for version ${version}`);
+    }
+  }
+  return notes as ReleaseNotes;
+}
+
+const unreleased = notesByVersion.get("unreleased");
+notesByVersion.delete("unreleased");
+
+export const unreleasedNotes =
+  unreleased && Object.values(unreleased).some(Boolean)
+    ? completeNotes("unreleased", unreleased)
+    : null;
+
 export const changelog: ChangelogEntry[] = Array.from(
   notesByVersion,
-  ([version, notes]) => {
-    for (const locale of RELEASE_LOCALES) {
-      if (!notes[locale]) {
-        throw new Error(`Missing ${locale} notes for version ${version}`);
-      }
-    }
-    return { version, notes: notes as ReleaseNotes };
-  },
+  ([version, notes]) => ({ version, notes: completeNotes(version, notes) }),
 ).sort((a, b) => b.version.localeCompare(a.version, "en", { numeric: true }));

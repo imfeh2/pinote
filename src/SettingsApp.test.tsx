@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import settingsZh from "@/i18n/resources/zh-CN/settings";
-import { changelog } from "@/lib/changelog";
+import { changelog, unreleasedNotes } from "@/lib/changelog";
 import { SettingsApp } from "@/SettingsApp";
 import { DEFAULT_SETTINGS, type Settings } from "@/stores/settings";
 
@@ -443,14 +443,16 @@ test("taskbar application failure is explicit and retry reapplies the saved targ
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 
-test("the changelog page lists every version and marks the current one", async () => {
+test("the changelog page lists unreleased changes and every version, and marks the current one", async () => {
   await selectPage("更新日志");
   const versions = Array.from(
     container.querySelectorAll("main section"),
     (section) => section.getAttribute("aria-label"),
   );
-  expect(versions[0]).toBe(`v${changelog[0].version}`);
-  expect(versions).toHaveLength(changelog.length);
+  expect(versions).toEqual([
+    ...(unreleasedNotes ? [settingsZh.changelog.unreleased] : []),
+    ...changelog.map((entry) => `v${entry.version}`),
+  ]);
   const current = container.querySelector('main section[aria-label="v0.6.3"]');
   expect(current?.textContent).toContain(settingsZh.changelog.current);
   const notes = changelog.find((entry) => entry.version === "0.6.3")?.notes;
