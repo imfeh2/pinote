@@ -1,0 +1,1 @@
+- The pointer now shows a grabbing hand while a note window is being dragged.

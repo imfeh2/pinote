@@ -12,6 +12,11 @@ import {
   openNoteContextMenu,
 } from "@/lib/contextMenuApi";
 import { logError, logInfo } from "@/lib/logger";
+import {
+  hideWindowDragCursor,
+  showWindowDragCursor,
+  showWindowDragCursorUntilRelease,
+} from "@/lib/windowDragCursor";
 
 import type {
   DragModifier,
@@ -163,6 +168,7 @@ export function useNoteWindowMouseInteractions(
     if (!interactionBlocked) return;
     middleDragState.current = null;
     middleDragPendingPosition.current = null;
+    hideWindowDragCursor();
     closeContextMenu();
   }, [closeContextMenu, interactionBlocked]);
 
@@ -253,6 +259,7 @@ export function useNoteWindowMouseInteractions(
           windowId: windowLabel,
           modifier: dragModifier,
         });
+        showWindowDragCursorUntilRelease();
         appWindow.startDragging().catch((error) => {
           logError("note-window", "start_dragging_failed", error, {
             windowId: windowLabel,
@@ -363,6 +370,7 @@ export function useNoteWindowMouseInteractions(
       if (deltaX === 0 && deltaY === 0) return;
       if (!state.moved && Math.abs(deltaX) + Math.abs(deltaY) >= 3) {
         state.moved = true;
+        if (state.allowMove) showWindowDragCursor();
         logInfo("note-window", "mouse_drag_moved", {
           windowId: windowLabel,
           delta: [deltaX, deltaY],
@@ -405,6 +413,7 @@ export function useNoteWindowMouseInteractions(
       middleDragState.current = null;
       middleDragPendingPosition.current = null;
       middleDragLastPosition.current = null;
+      hideWindowDragCursor();
       if (!state) return;
       const completedRequests = state.positionApplied + state.positionErrors;
       logInfo("note-window", "mouse_drag_finished", {

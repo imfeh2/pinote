@@ -18,6 +18,7 @@ import {
   openSettingsWindow,
   showAllHiddenNoteWindows,
 } from "@/lib/windowApi";
+import { showWindowDragCursorUntilRelease } from "@/lib/windowDragCursor";
 import type { Settings } from "@/stores/settings";
 
 interface UseNoteWindowActionsOptions {
@@ -159,6 +160,7 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
       if (event.button !== 0 || interactionBlocked) return;
       event.preventDefault();
       logInfo("note-window", "window_drag_start", { windowId: windowLabel });
+      showWindowDragCursorUntilRelease();
       appWindow.startDragging().catch((error) => {
         logError("note-window", "start_dragging_failed", error, {
           windowId: windowLabel,

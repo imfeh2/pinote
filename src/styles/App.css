@@ -642,3 +642,8 @@
 [data-theme="dark"] .note-editor .cm-editor .cm-md-codeblock .tok-className {
   color: hsl(207 82% 66%);
 }
+
+html[data-window-dragging="true"],
+html[data-window-dragging="true"] * {
+  cursor: grabbing !important;
+}
