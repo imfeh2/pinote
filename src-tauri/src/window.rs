@@ -1,8 +1,13 @@
 use log::{error, info};
 use std::{thread, time::Duration};
-use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
+};
 
-use crate::window_state::{self, UpdateWindowStateOptions, WindowVisibility};
+use crate::window_state::{
+    self, MonitorArea, UpdateWindowStateOptions, WindowBounds, WindowVisibility,
+};
 use crate::{
     NEW_NOTE_WINDOW_HEIGHT, NEW_NOTE_WINDOW_WIDTH, NOTE_WINDOW_HEIGHT, NOTE_WINDOW_MIN_HEIGHT,
     NOTE_WINDOW_MIN_WIDTH, NOTE_WINDOW_WIDTH, OpenNoteWindowOptions, build_note_window_url,
@@ -60,6 +65,75 @@ fn monitor_work_area(monitor: &tauri::Monitor) -> ScreenRect {
         width: i64::from(area.size.width),
         height: i64::from(area.size.height),
     }
+}
+
+fn monitor_area(monitor: &tauri::Monitor) -> MonitorArea {
+    let area = monitor.work_area();
+    MonitorArea {
+        name: monitor.name().cloned().unwrap_or_default(),
+        x: area.position.x,
+        y: area.position.y,
+        width: area.size.width,
+        height: area.size.height,
+        scale_factor: monitor.scale_factor(),
+    }
+}
+
+pub fn monitor_areas(
+    app: &tauri::AppHandle,
+) -> Result<(Vec<MonitorArea>, Option<MonitorArea>), String> {
+    let monitors = app
+        .available_monitors()
+        .map_err(|error| format!("Failed to read monitors: {error}"))?
+        .iter()
+        .map(monitor_area)
+        .collect();
+    let primary = app
+        .primary_monitor()
+        .map_err(|error| format!("Failed to read primary monitor: {error}"))?
+        .as_ref()
+        .map(monitor_area);
+    Ok((monitors, primary))
+}
+
+pub fn capture_window_bounds(window: &WebviewWindow) -> Result<WindowBounds, String> {
+    let position = window
+        .outer_position()
+        .map_err(|error| format!("Failed to read window position: {error}"))?;
+    let scale_factor = window
+        .scale_factor()
+        .map_err(|error| format!("Failed to read window scale factor: {error}"))?;
+    let size = window
+        .inner_size()
+        .map_err(|error| format!("Failed to read window size: {error}"))?
+        .to_logical::<f64>(scale_factor);
+    let monitor = window
+        .current_monitor()
+        .map_err(|error| format!("Failed to read window monitor: {error}"))?
+        .as_ref()
+        .map(monitor_area);
+    Ok(WindowBounds {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+        monitor,
+    })
+}
+
+fn apply_window_bounds(
+    app: &tauri::AppHandle,
+    window: &WebviewWindow,
+    bounds: &WindowBounds,
+) -> Result<(), String> {
+    let (monitors, primary) = monitor_areas(app)?;
+    let restored = window_state::restore_bounds(bounds, &monitors, primary.as_ref());
+    window
+        .set_position(PhysicalPosition::new(restored.x, restored.y))
+        .map_err(|error| format!("Failed to set window position: {error}"))?;
+    window
+        .set_size(LogicalSize::new(restored.width, restored.height))
+        .map_err(|error| format!("Failed to set window size: {error}"))
 }
 
 fn available_work_areas(app: &tauri::AppHandle) -> Result<Vec<ScreenRect>, String> {
@@ -174,17 +248,8 @@ pub fn bring_note_windows_back_on_screen(app: &tauri::AppHandle) -> usize {
             error!("bring_note_window_back_move_failed window_id={label:?} error={err}");
             continue;
         }
-        if let Ok(inner_size) = window.inner_size()
-            && let Err(err) = window_state::set_window_bounds(
-                app,
-                &label,
-                window_state::WindowBounds {
-                    x: next_position.x,
-                    y: next_position.y,
-                    width: f64::from(inner_size.width),
-                    height: f64::from(inner_size.height),
-                },
-            )
+        if let Err(err) = capture_window_bounds(&window)
+            .and_then(|bounds| window_state::set_window_bounds(app, &label, bounds))
         {
             error!("bring_note_window_back_state_failed window_id={label:?} error={err}");
         }
@@ -542,16 +607,7 @@ pub fn build_note_window(
         if let Some(existing) = app.get_webview_window(&window_id) {
             info!("open_note_window_reuse_existing window_id={window_id:?}");
             if let Some(bounds) = options.bounds.as_ref() {
-                let width = bounds.width.round().max(1.0) as u32;
-                let height = bounds.height.round().max(1.0) as u32;
-                existing
-                    .set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-                        width, height,
-                    )))
-                    .map_err(|error| format!("Failed to set window size: {error}"))?;
-                existing
-                    .set_position(PhysicalPosition::new(bounds.x, bounds.y))
-                    .map_err(|error| format!("Failed to set window position: {error}"))?;
+                apply_window_bounds(&app, &existing, bounds)?;
             }
             if let Some(always_on_top) = options.always_on_top {
                 existing
@@ -623,16 +679,7 @@ pub fn build_note_window(
             .map_err(|error| format!("Failed to create note window: {error}"))?;
         info!("open_note_window_create_built window_id={window_id:?}");
         if let Some(bounds) = options.bounds.as_ref() {
-            let width = bounds.width.round().max(1.0) as u32;
-            let height = bounds.height.round().max(1.0) as u32;
-            window
-                .set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-                    width, height,
-                )))
-                .map_err(|error| format!("Failed to set new window size: {error}"))?;
-            window
-                .set_position(PhysicalPosition::new(bounds.x, bounds.y))
-                .map_err(|error| format!("Failed to set new window position: {error}"))?;
+            apply_window_bounds(&app, &window, bounds)?;
         }
         let mut state = capture_note_window_state(
             &window,

@@ -1,1 +1,3 @@
 - The pointer now shows a grabbing hand while a note window is being dragged.
+- When the monitor layout changes, note windows keep their relative position and size on the screen.
+- Fixed note windows that could grow or shrink after restarting Pinote on monitors with different scaling.

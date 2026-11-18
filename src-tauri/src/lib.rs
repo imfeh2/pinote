@@ -252,6 +252,18 @@ fn clamp_note_scroll_top(value: Option<f64>) -> f64 {
     value.unwrap_or(0.0).max(0.0)
 }
 
+fn migrate_window_state_sizes(app: &tauri::AppHandle) -> Result<(), String> {
+    let (monitors, primary) = window::monitor_areas(app)?;
+    if app
+        .state::<document::DocumentService>()
+        .cache
+        .migrate_physical_sizes(&monitors, primary.as_ref())?
+    {
+        info!("window_state_migrated monitors={}", monitors.len());
+    }
+    Ok(())
+}
+
 fn capture_note_window_state(
     window: &WebviewWindow,
     note_id: &str,
@@ -260,12 +272,7 @@ fn capture_note_window_state(
     opacity: f64,
     scroll_top: f64,
 ) -> Result<window_state::CachedWindowState, String> {
-    let position = window
-        .outer_position()
-        .map_err(|error| format!("Failed to read window position: {error}"))?;
-    let size = window
-        .inner_size()
-        .map_err(|error| format!("Failed to read window size: {error}"))?;
+    let bounds = window::capture_window_bounds(window)?;
     let always_on_top = window
         .is_always_on_top()
         .map_err(|error| format!("Failed to read always-on-top state: {error}"))?;
@@ -285,12 +292,7 @@ fn capture_note_window_state(
         read_only,
         opacity,
         scroll_top,
-        bounds: window_state::WindowBounds {
-            x: position.x,
-            y: position.y,
-            width: f64::from(size.width),
-            height: f64::from(size.height),
-        },
+        bounds,
         updated_at: String::new(),
     })
 }
@@ -1134,6 +1136,9 @@ pub fn run() {
             handle.manage(document::DocumentService::new(
                 handle.path().app_data_dir()?,
             ));
+            if let Err(error) = migrate_window_state_sizes(&handle) {
+                error!("window_state_migrate_failed error={error}");
+            }
             handle.manage(legacy_markdown::LegacyNotes::default());
             if let Err(error) = legacy_markdown::prepare(&handle) {
                 error!("legacy_markdown_prepare_failed error={error}");

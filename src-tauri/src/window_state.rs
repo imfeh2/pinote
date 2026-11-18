@@ -9,7 +9,8 @@ use std::{
 };
 use tauri::Manager;
 
-const CACHE_VERSION: u32 = 1;
+const CACHE_VERSION: u32 = 2;
+const PHYSICAL_SIZE_CACHE_VERSION: u64 = 1;
 const NOTE_OPACITY_MIN: f64 = 0.0;
 const NOTE_OPACITY_MAX: f64 = 1.0;
 const NOTE_SCROLL_TOP_MIN: f64 = 0.0;
@@ -45,14 +46,50 @@ impl WindowStateStore {
             .map_err(|_| String::from("Failed to lock window state cache"))?;
         let mut cache = self.read_unlocked()?;
         let result = update(&mut cache);
-        let content = serde_json::to_vec_pretty(&cache)
+        self.write_unlocked(&cache)?;
+        Ok(result)
+    }
+
+    fn write_unlocked(&self, cache: &WindowStateCache) -> Result<(), String> {
+        let content = serde_json::to_vec_pretty(cache)
             .map_err(|error| format!("Failed to serialize window state cache: {error}"))?;
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
         crate::storage::replace_file(&self.path, &content)
-            .map_err(|error| format!("Failed to write window state cache: {error}"))?;
-        Ok(result)
+            .map_err(|error| format!("Failed to write window state cache: {error}"))
+    }
+
+    pub fn migrate_physical_sizes(
+        &self,
+        monitors: &[MonitorArea],
+        primary: Option<&MonitorArea>,
+    ) -> Result<bool, String> {
+        let _guard = self
+            .mutex
+            .lock()
+            .map_err(|_| String::from("Failed to lock window state cache"))?;
+        let content = match fs::read_to_string(&self.path) {
+            Ok(value) => value,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(format!("Failed to read window state cache: {error}")),
+        };
+        let mut value = serde_json::from_str::<Value>(content.trim_start_matches('\u{feff}'))
+            .map_err(|error| format!("Failed to parse window state cache: {error}"))?;
+        if value.get("version").and_then(Value::as_u64) != Some(PHYSICAL_SIZE_CACHE_VERSION) {
+            return Ok(false);
+        }
+        if let Some(windows) = value.get_mut("windows").and_then(Value::as_object_mut) {
+            for item in windows.values_mut() {
+                if let Some(bounds) = item.get_mut("bounds").and_then(Value::as_object_mut) {
+                    convert_physical_bounds(bounds, monitors, primary)?;
+                }
+            }
+        }
+        value["version"] = Value::from(CACHE_VERSION);
+        let cache = sanitize_cache(value)?;
+        self.write_unlocked(&cache)?;
+        Ok(true)
     }
 
     fn read_unlocked(&self) -> Result<WindowStateCache, String> {
@@ -111,6 +148,121 @@ pub struct WindowBounds {
     pub y: i32,
     pub width: f64,
     pub height: f64,
+    pub monitor: Option<MonitorArea>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorArea {
+    pub name: String,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub scale_factor: f64,
+}
+
+impl MonitorArea {
+    fn contains(&self, x: f64, y: f64) -> bool {
+        x >= f64::from(self.x)
+            && x < f64::from(self.x) + f64::from(self.width)
+            && y >= f64::from(self.y)
+            && y < f64::from(self.y) + f64::from(self.height)
+    }
+}
+
+pub fn restore_bounds(
+    bounds: &WindowBounds,
+    monitors: &[MonitorArea],
+    primary: Option<&MonitorArea>,
+) -> WindowBounds {
+    let unchanged = WindowBounds {
+        monitor: None,
+        ..bounds.clone()
+    };
+    let Some(saved) = bounds.monitor.as_ref() else {
+        return unchanged;
+    };
+    if monitors.contains(saved) || saved.width == 0 || saved.height == 0 {
+        return unchanged;
+    }
+    let center_x = f64::from(bounds.x) + bounds.width * saved.scale_factor / 2.0;
+    let center_y = f64::from(bounds.y) + bounds.height * saved.scale_factor / 2.0;
+    let Some(target) = monitors
+        .iter()
+        .find(|monitor| !saved.name.is_empty() && monitor.name == saved.name)
+        .or_else(|| {
+            monitors
+                .iter()
+                .find(|monitor| monitor.contains(center_x, center_y))
+        })
+        .or(primary)
+        .or_else(|| monitors.first())
+    else {
+        return unchanged;
+    };
+    let logical_area = |monitor: &MonitorArea| {
+        f64::from(monitor.width) * f64::from(monitor.height)
+            / (monitor.scale_factor * monitor.scale_factor)
+    };
+    let ratio = (logical_area(target) / logical_area(saved)).sqrt();
+    let width = (bounds.width * ratio).max(1.0);
+    let height = (bounds.height * ratio).max(1.0);
+    let place = |origin: i32, length: u32, relative: f64, size: f64| {
+        let start = f64::from(origin);
+        let end = start + f64::from(length) - size;
+        let position = start + relative * f64::from(length) - size / 2.0;
+        position.min(end).max(start).round() as i32
+    };
+    WindowBounds {
+        x: place(
+            target.x,
+            target.width,
+            (center_x - f64::from(saved.x)) / f64::from(saved.width),
+            width * target.scale_factor,
+        ),
+        y: place(
+            target.y,
+            target.height,
+            (center_y - f64::from(saved.y)) / f64::from(saved.height),
+            height * target.scale_factor,
+        ),
+        width,
+        height,
+        monitor: None,
+    }
+}
+
+fn convert_physical_bounds(
+    bounds: &mut serde_json::Map<String, Value>,
+    monitors: &[MonitorArea],
+    primary: Option<&MonitorArea>,
+) -> Result<(), String> {
+    let x = as_number(bounds.get("x"), 0.0);
+    let y = as_number(bounds.get("y"), 0.0);
+    let width = as_number(bounds.get("width"), DEFAULT_WINDOW_WIDTH);
+    let height = as_number(bounds.get("height"), DEFAULT_WINDOW_HEIGHT);
+    let Some(monitor) = monitors
+        .iter()
+        .find(|monitor| monitor.contains(x + width / 2.0, y + height / 2.0))
+        .or(primary)
+    else {
+        return Ok(());
+    };
+    bounds.insert(
+        String::from("width"),
+        Value::from(width / monitor.scale_factor),
+    );
+    bounds.insert(
+        String::from("height"),
+        Value::from(height / monitor.scale_factor),
+    );
+    bounds.insert(
+        String::from("monitor"),
+        serde_json::to_value(monitor)
+            .map_err(|error| format!("Failed to serialize monitor area: {error}"))?,
+    );
+    Ok(())
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -209,25 +361,27 @@ fn build_note_cache_key(note_path: &str) -> String {
     crate::document::storage_key(note_path)
 }
 
-fn sanitize_bounds(value: Option<&Value>) -> WindowBounds {
+fn sanitize_bounds(value: Option<&Value>) -> Option<WindowBounds> {
     let Some(source) = value.and_then(Value::as_object) else {
-        return WindowBounds {
+        return Some(WindowBounds {
             x: 0,
             y: 0,
             width: DEFAULT_WINDOW_WIDTH,
             height: DEFAULT_WINDOW_HEIGHT,
-        };
+            monitor: None,
+        });
     };
-    WindowBounds {
+    let monitor = match source.get("monitor") {
+        None | Some(Value::Null) => None,
+        Some(value) => Some(serde_json::from_value(value.clone()).ok()?),
+    };
+    Some(WindowBounds {
         x: as_i32(source.get("x"), 0),
         y: as_i32(source.get("y"), 0),
-        width: as_number(source.get("width"), DEFAULT_WINDOW_WIDTH)
-            .round()
-            .max(1.0),
-        height: as_number(source.get("height"), DEFAULT_WINDOW_HEIGHT)
-            .round()
-            .max(1.0),
-    }
+        width: as_number(source.get("width"), DEFAULT_WINDOW_WIDTH).max(1.0),
+        height: as_number(source.get("height"), DEFAULT_WINDOW_HEIGHT).max(1.0),
+        monitor,
+    })
 }
 
 fn sanitize_window_state(value: &Value) -> Option<CachedWindowState> {
@@ -262,7 +416,7 @@ fn sanitize_window_state(value: &Value) -> Option<CachedWindowState> {
         read_only: as_bool(source.get("readOnly"), false),
         opacity: as_number(source.get("opacity"), 1.0).clamp(NOTE_OPACITY_MIN, NOTE_OPACITY_MAX),
         scroll_top: as_number(source.get("scrollTop"), 0.0).max(NOTE_SCROLL_TOP_MIN),
-        bounds: sanitize_bounds(source.get("bounds")),
+        bounds: sanitize_bounds(source.get("bounds"))?,
         updated_at,
     })
 }
@@ -566,10 +720,9 @@ fn apply_upsert_window_state(
         opacity: state.opacity.clamp(NOTE_OPACITY_MIN, NOTE_OPACITY_MAX),
         scroll_top: state.scroll_top.max(NOTE_SCROLL_TOP_MIN),
         bounds: WindowBounds {
-            x: state.bounds.x,
-            y: state.bounds.y,
-            width: state.bounds.width.round().max(1.0),
-            height: state.bounds.height.round().max(1.0),
+            width: state.bounds.width.max(1.0),
+            height: state.bounds.height.max(1.0),
+            ..state.bounds
         },
         window_id: state.window_id.trim().to_string(),
         note_id: state.note_id.trim().to_string(),
@@ -675,10 +828,9 @@ pub fn set_window_bounds(
                 return;
             };
             state.bounds = WindowBounds {
-                x: bounds.x,
-                y: bounds.y,
-                width: bounds.width.round().max(1.0),
-                height: bounds.height.round().max(1.0),
+                width: bounds.width.max(1.0),
+                height: bounds.height.max(1.0),
+                ..bounds
             };
             state.updated_at = now.clone();
         }
@@ -772,16 +924,146 @@ mod tests {
                 y: 20,
                 width: 300.0,
                 height: 400.0,
+                monitor: None,
             },
             updated_at: String::new(),
         }
+    }
+
+    fn monitor(name: &str, x: i32, width: u32, height: u32, scale_factor: f64) -> MonitorArea {
+        MonitorArea {
+            name: String::from(name),
+            x,
+            y: 0,
+            width,
+            height,
+            scale_factor,
+        }
+    }
+
+    fn bounds_on(monitor: &MonitorArea, x: i32, y: i32) -> WindowBounds {
+        WindowBounds {
+            x,
+            y,
+            width: 200.0,
+            height: 100.0,
+            monitor: Some(monitor.clone()),
+        }
+    }
+
+    fn placed(bounds: WindowBounds) -> (i32, i32, f64, f64) {
+        (bounds.x, bounds.y, bounds.width, bounds.height)
+    }
+
+    #[test]
+    fn unchanged_monitor_keeps_the_exact_bounds() {
+        let laptop = monitor("DISPLAY1", 0, 2560, 1400, 1.25);
+        let bounds = bounds_on(&laptop, 37, 51);
+        assert_eq!(
+            placed(restore_bounds(
+                &bounds,
+                std::slice::from_ref(&laptop),
+                Some(&laptop)
+            )),
+            (37, 51, 200.0, 100.0)
+        );
+    }
+
+    #[test]
+    fn centered_window_keeps_its_share_of_another_monitor() {
+        let external = monitor("DISPLAY2", 2560, 3840, 2400, 2.0);
+        let laptop = monitor("DISPLAY1", 0, 2560, 1600, 1.25);
+        let bounds = bounds_on(&external, 2560 + 1920 - 200, 1200 - 100);
+        assert_eq!(
+            placed(restore_bounds(
+                &bounds,
+                std::slice::from_ref(&laptop),
+                Some(&laptop)
+            )),
+            (1147, 733, 200.0 * 2048.0 / 1920.0, 100.0 * 2048.0 / 1920.0)
+        );
+    }
+
+    #[test]
+    fn edge_window_stays_inside_a_smaller_monitor() {
+        let external = monitor("DISPLAY2", 2560, 3840, 2000, 1.0);
+        let laptop = monitor("DISPLAY1", 0, 1920, 1000, 1.0);
+        let bounds = bounds_on(&external, 2560 + 3840 - 200, 2000 - 100);
+        assert_eq!(
+            placed(restore_bounds(
+                &bounds,
+                std::slice::from_ref(&laptop),
+                Some(&laptop)
+            )),
+            (1820, 950, 100.0, 50.0)
+        );
+    }
+
+    #[test]
+    fn switching_back_restores_the_original_size() {
+        let external = monitor("DISPLAY1", 0, 2560, 1380, 1.25);
+        let laptop = monitor("DISPLAY1", 0, 2880, 1704, 2.0);
+        let original = bounds_on(&external, 1700, 480);
+        let on_laptop = WindowBounds {
+            monitor: Some(laptop.clone()),
+            ..restore_bounds(&original, std::slice::from_ref(&laptop), Some(&laptop))
+        };
+        let back = restore_bounds(&on_laptop, std::slice::from_ref(&external), Some(&external));
+        assert!((back.width - original.width).abs() < 1e-9);
+        assert!((back.height - original.height).abs() < 1e-9);
+        assert!((back.x - original.x).abs() <= 1);
+        assert!((back.y - original.y).abs() <= 1);
+    }
+
+    #[test]
+    fn resized_monitor_with_the_same_name_is_reused() {
+        let before = monitor("DISPLAY2", 1920, 1920, 1000, 1.0);
+        let after = monitor("DISPLAY2", 1920, 3840, 2000, 1.0);
+        let laptop = monitor("DISPLAY1", 0, 1920, 1000, 1.0);
+        let bounds = bounds_on(&before, 1920 + 860, 450);
+        assert_eq!(
+            placed(restore_bounds(
+                &bounds,
+                &[laptop.clone(), after],
+                Some(&laptop)
+            )),
+            (1920 + 1720, 900, 400.0, 200.0)
+        );
+    }
+
+    #[test]
+    fn physical_sizes_are_converted_with_the_monitor_under_the_window() {
+        let directory = crate::storage::test_directory();
+        let path = directory.path().join("windows.json");
+        let original = br#"{"version":1,"windows":{"entry":{"windowId":"note-test","noteId":"test-note","notePath":"C:\\notes\\test.md","bounds":{"x":2700,"y":100,"width":600,"height":800}},"other":{"windowId":"note-other","noteId":"other-note","notePath":"C:\\notes\\other.md","bounds":{"x":-5000,"y":100,"width":500,"height":250}}}}"#;
+        fs::write(&path, original).unwrap();
+        let laptop = monitor("DISPLAY1", 0, 2048, 1100, 1.25);
+        let external = monitor("DISPLAY2", 2048, 3840, 2100, 2.0);
+        let store = WindowStateStore::new(path.clone());
+        assert!(
+            store
+                .migrate_physical_sizes(&[laptop.clone(), external.clone()], Some(&laptop))
+                .unwrap()
+        );
+        assert!(
+            !store
+                .migrate_physical_sizes(&[laptop.clone(), external.clone()], Some(&laptop))
+                .unwrap()
+        );
+        let cache = store.read().unwrap();
+        let entry = &cache.windows[&build_note_cache_key("C:\\notes\\test.md")].bounds;
+        assert_eq!((entry.x, entry.width, entry.height), (2700, 300.0, 400.0));
+        assert_eq!(entry.monitor.as_ref(), Some(&external));
+        let other = &cache.windows[&build_note_cache_key("C:\\notes\\other.md")].bounds;
+        assert_eq!((other.width, other.height), (400.0, 200.0));
+        assert_eq!(other.monitor.as_ref(), Some(&laptop));
     }
 
     #[test]
     fn invalid_entries_preserve_the_original_cache() {
         let directory = crate::storage::test_directory();
         let path = directory.path().join("windows.json");
-        let original = br#"{"version":1,"windows":{"entry":{"windowId":"note-test"}}}"#;
+        let original = br#"{"version":2,"windows":{"entry":{"windowId":"note-test"}}}"#;
         fs::write(&path, original).unwrap();
         let store = WindowStateStore::new(path.clone());
         assert!(store.read().is_err());

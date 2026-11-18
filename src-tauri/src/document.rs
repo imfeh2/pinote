@@ -1033,7 +1033,7 @@ mod tests {
                 .unwrap();
         }
         assert_eq!(service.history.list("settings").unwrap().len(), 2);
-        let cache = serde_json::json!({ "version": 1, "windows": {
+        let cache = serde_json::json!({ "version": 2, "windows": {
             "legacy-upper": { "windowId": "upper", "noteId": "upper", "notePath": upper, "visibility": "hidden", "readOnly": true },
             "legacy-lower": { "windowId": "lower", "noteId": "lower", "notePath": lower, "visibility": "hidden", "readOnly": false }
         }, "windowOrder": ["legacy-lower", "legacy-upper"], "hiddenStack": ["legacy-upper", "legacy-lower"], "visibleWindowToggleSnapshot": ["upper", "lower"] });
@@ -1068,7 +1068,7 @@ mod tests {
         fs::write(&path, "initial").unwrap();
         let cache_path = directory.path().join("windows.json");
         let cache = serde_json::to_vec(&serde_json::json!({
-            "version": 1,
+            "version": 2,
             "windows": { "entry": { "windowId": "first", "noteId": "note", "notePath": path, "visibility": "hidden" } },
             "windowOrder": ["entry"], "hiddenStack": ["entry"], "visibleWindowToggleSnapshot": ["entry"]
         })).unwrap();
