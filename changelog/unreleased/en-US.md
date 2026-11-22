@@ -2,5 +2,6 @@
 - The note font weight can now be adjusted.
 - The interface can optionally use the note fonts.
 - Number fields and shortcut boxes in the settings are more compact.
+- Keyboard shortcuts can be restored to their defaults.
 - Fixed shortcut recording starting when clicking anywhere on a shortcut row.
 - Fixed existing global shortcuts firing while a new shortcut is being recorded.

@@ -137,6 +137,13 @@ export default {
   },
   shortcuts: {
     keyboard: "键盘快捷键",
+    reset: {
+      label: "恢复默认",
+      title: "恢复默认快捷键？",
+      description: "所有键盘快捷键都会改回默认设置。",
+      confirm: "恢复",
+      cancel: "取消",
+    },
     pressKeys: "请按下快捷键…",
     items: {
       newNote: "新建便签",

@@ -137,3 +137,28 @@ test("current interactions list every way to reach each action", async () => {
     "shortcuts.currentInteractions.move:shortcuts.currentInteractions.methods.edgeDrag",
   );
 });
+
+test("restoring defaults asks first and then resets every shortcut", async () => {
+  const button = () =>
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (element) => element.textContent === "shortcuts.reset.label",
+    );
+  await render({});
+  expect(button()?.disabled).toBe(true);
+  await render({
+    shortcuts: { ...DEFAULT_SETTINGS.shortcuts, newNote: "Ctrl+Alt+N" },
+  });
+  const reset = button();
+  if (!reset) throw new Error("Missing reset button");
+  expect(reset.disabled).toBe(false);
+  await click(reset);
+  expect(update).not.toHaveBeenCalled();
+  const confirm = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button'),
+  ).find((element) => element.textContent === "shortcuts.reset.confirm");
+  if (!confirm) throw new Error("Missing confirm button");
+  await click(confirm);
+  expect(update).toHaveBeenCalledWith({
+    shortcuts: DEFAULT_SETTINGS.shortcuts,
+  });
+});

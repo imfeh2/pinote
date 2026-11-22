@@ -1,4 +1,7 @@
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertDialog } from "@/components/AlertDialog";
+import { Button } from "@/components/Button";
 import { ShortcutInput } from "@/components/ShortcutInput";
 import {
   dragModifiers,
@@ -11,10 +14,11 @@ import {
 } from "@/components/settings/shared";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ToggleGroup";
 import { cn } from "@/lib/utils";
-import type {
-  DragModifier,
-  Settings,
-  WheelResizeModifier,
+import {
+  DEFAULT_SETTINGS,
+  type DragModifier,
+  type Settings,
+  type WheelResizeModifier,
 } from "@/stores/settings";
 import type { SettingsPatch } from "@/stores/settingsStore";
 
@@ -34,6 +38,12 @@ export function ShortcutsSection({
   updateSettings,
 }: ShortcutsSectionProps) {
   const { t } = useTranslation("settings");
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const resetButtonRef = useRef<HTMLButtonElement | null>(null);
+  const customized = shortcutItems.some(
+    (item) =>
+      settings.shortcuts[item.key] !== DEFAULT_SETTINGS.shortcuts[item.key],
+  );
   const modifierLabel = (modifier: string) =>
     t(`shortcuts.modifiers.${modifier}`);
   const wheelMethods = (modifier: WheelResizeModifier) =>
@@ -80,9 +90,38 @@ export function ShortcutsSection({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
-        <div className="text-xs font-medium text-muted-foreground">
-          {t("shortcuts.keyboard")}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-medium text-muted-foreground">
+            {t("shortcuts.keyboard")}
+          </div>
+          <Button
+            ref={resetButtonRef}
+            variant="ghost"
+            disabled={!customized}
+            onClick={() => setConfirmingReset(true)}
+            className="h-6 px-2"
+          >
+            {t("shortcuts.reset.label")}
+          </Button>
         </div>
+        <AlertDialog
+          open={confirmingReset}
+          title={t("shortcuts.reset.title")}
+          description={t("shortcuts.reset.description")}
+          cancelLabel={t("shortcuts.reset.cancel")}
+          returnFocusRef={resetButtonRef}
+          onClose={() => setConfirmingReset(false)}
+          actions={[
+            {
+              label: t("shortcuts.reset.confirm"),
+              destructive: true,
+              onAction: () => {
+                setConfirmingReset(false);
+                updateSettings({ shortcuts: DEFAULT_SETTINGS.shortcuts });
+              },
+            },
+          ]}
+        />
         {shortcutItems.map((item) => (
           <ShortcutInput
             key={item.key}

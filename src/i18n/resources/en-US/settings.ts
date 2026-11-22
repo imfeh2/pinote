@@ -167,6 +167,13 @@ export default {
   },
   shortcuts: {
     keyboard: "Keyboard shortcuts",
+    reset: {
+      label: "Restore defaults",
+      title: "Restore default shortcuts?",
+      description: "All keyboard shortcuts will be set back to their defaults.",
+      confirm: "Restore",
+      cancel: "Cancel",
+    },
     pressKeys: "Press keys...",
     items: {
       newNote: "New note",
