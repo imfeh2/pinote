@@ -148,10 +148,16 @@ export function Editor({
   );
 }
 
-export function MarkdownPreview({ markdown }: { markdown: string }) {
+export function MarkdownPreview({
+  markdown,
+  editable = false,
+}: {
+  markdown: string;
+  editable?: boolean;
+}) {
   const { hostRef } = useMarkdownView({
     defaultValue: markdown,
-    readOnly: true,
+    readOnly: !editable,
   });
   return <div ref={hostRef} />;
 }

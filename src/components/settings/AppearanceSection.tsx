@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { FontFamilySetting } from "@/components/settings/FontFamilySetting";
 import { SettingsNumberInput } from "@/components/settings/SettingsNumberInput";
 import { SettingsSwitch } from "@/components/settings/SettingsSwitch";
 import {
-  fontFamilyOptions,
   themeOptions,
   windowsGlassEffectOptions,
 } from "@/components/settings/shared";
@@ -139,30 +139,12 @@ export function AppearanceSection({
           {t("appearance.typography.label")}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="text-xs text-muted-foreground">
-            {t("appearance.typography.fontFamily")}
-          </div>
-          <div className="flex items-center gap-2">
-            {fontFamilyOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() =>
-                  updateSettings({ editorFontFamily: option.value })
-                }
-                className={cn(
-                  "flex-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
-                  settings.editorFontFamily === option.value
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-muted-foreground hover:bg-accent",
-                )}
-              >
-                {t(option.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
+        <FontFamilySetting
+          families={settings.editorFontFamily}
+          fontSize={settings.editorFontSize}
+          lineHeight={settings.editorLineHeight}
+          onChange={(editorFontFamily) => updateSettings({ editorFontFamily })}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center justify-between gap-2">

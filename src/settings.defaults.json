@@ -4,7 +4,7 @@
   "newNoteDirectory": "",
   "noteGlassEffectWindows": "none",
   "noteGlassEffectMacos": true,
-  "editorFontFamily": "system",
+  "editorFontFamily": [],
   "editorFontSize": 15,
   "editorLineHeight": 1.2,
   "editorPaddingX": 10,

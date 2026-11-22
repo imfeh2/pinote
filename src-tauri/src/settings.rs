@@ -3,7 +3,18 @@ use serde_json::{Map, Value};
 use std::{fs, io, path::PathBuf, sync::Mutex};
 use tauri::{Emitter, Manager};
 
-use crate::storage;
+use crate::{fonts, storage};
+
+const SERIF_FONT_FAMILIES: &[&str] = &["Georgia", "Cambria", "Times New Roman", "Times"];
+const MONO_FONT_FAMILIES: &[&str] = &[
+    "JetBrains Mono",
+    "Fira Code",
+    "Menlo",
+    "Monaco",
+    "Consolas",
+    "Liberation Mono",
+    "Courier New",
+];
 
 #[derive(Clone, Debug, Serialize)]
 pub struct SettingsSnapshot {
@@ -60,6 +71,24 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
             })
         });
     }
+    if key == "editorFontFamily" {
+        return value.as_array().is_some_and(|items| {
+            items.iter().enumerate().all(|(index, item)| {
+                item.as_object().is_some_and(|item| {
+                    item.len() == 2
+                        && item.get("enabled").is_some_and(Value::is_boolean)
+                        && item.get("family").is_some_and(|family| {
+                            family
+                                .as_str()
+                                .is_some_and(|family| !family.is_empty() && family.trim() == family)
+                                && !items[..index]
+                                    .iter()
+                                    .any(|other| other["family"] == *family)
+                        })
+                })
+            })
+        });
+    }
     if key == "contextMenuItems" {
         let actions = context_menu_actions(default);
         return value.as_array().is_some_and(|items| {
@@ -84,7 +113,6 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
         "language" => &["system", "en-US", "zh-CN"],
         "theme" => &["system", "light", "dark"],
         "noteGlassEffectWindows" => &["none", "mica", "acrylic", "blur"],
-        "editorFontFamily" => &["system", "serif", "mono"],
         "wheelResizeModifier" | "wheelOpacityModifier" => &["none", "alt", "ctrl", "shift", "meta"],
         "dragModifier" => &["none", "alt", "ctrl", "meta"],
         _ => &[],
@@ -107,9 +135,39 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
     }
 }
 
-fn normalize(mut stored: Map<String, Value>) -> Map<String, Value> {
+fn font_families_from_preset(
+    preset: &str,
+    installed: impl FnOnce() -> Result<Vec<String>, String>,
+) -> Result<Value, String> {
+    let families = match preset {
+        "serif" => SERIF_FONT_FAMILIES,
+        "mono" => MONO_FONT_FAMILIES,
+        _ => return Ok(Value::Array(Vec::new())),
+    };
+    let installed = installed()?;
+    Ok(Value::Array(
+        families
+            .iter()
+            .filter(|family| {
+                installed
+                    .iter()
+                    .any(|installed| installed.eq_ignore_ascii_case(family))
+            })
+            .map(|family| serde_json::json!({"family": family, "enabled": true}))
+            .collect(),
+    ))
+}
+
+fn normalize(
+    mut stored: Map<String, Value>,
+    installed_font_families: impl FnOnce() -> Result<Vec<String>, String>,
+) -> Result<Map<String, Value>, String> {
     let defaults = defaults();
     stored.remove("noteGlassBlur");
+    if let Some(Value::String(preset)) = stored.get("editorFontFamily") {
+        let families = font_families_from_preset(preset, installed_font_families)?;
+        stored.insert("editorFontFamily".into(), families);
+    }
     if let Some(Value::String(button)) = stored.remove("dragMouseButton")
         && !stored.contains_key("dragMouseButtons")
     {
@@ -187,11 +245,18 @@ fn normalize(mut stored: Map<String, Value>) -> Map<String, Value> {
     if let Some(Value::String(directory)) = stored.get_mut("newNoteDirectory") {
         *directory = directory.trim().to_string();
     }
-    stored
+    Ok(stored)
 }
 
 impl SettingsStore {
     pub fn new(path: PathBuf) -> Result<Self, String> {
+        Self::open(path, fonts::installed_font_families)
+    }
+
+    fn open(
+        path: PathBuf,
+        installed_font_families: impl FnOnce() -> Result<Vec<String>, String>,
+    ) -> Result<Self, String> {
         let stored = match fs::read_to_string(&path) {
             Ok(content) => serde_json::from_str(content.trim_start_matches('\u{feff}'))
                 .map_err(|error| format!("Could not read settings: {error}"))?,
@@ -202,7 +267,7 @@ impl SettingsStore {
             path,
             snapshot: Mutex::new(SettingsSnapshot {
                 revision: 0,
-                settings: normalize(stored),
+                settings: normalize(stored, installed_font_families)?,
             }),
         })
     }
@@ -420,6 +485,64 @@ mod tests {
             json!({"dragMouseButton": "right"}),
         ] {
             assert!(store.update(patch(value)).is_err());
+        }
+    }
+
+    #[test]
+    fn font_presets_become_installed_font_families() {
+        let directory = storage::test_directory();
+        let path = directory.path().join("settings.json");
+        let installed = || {
+            Ok(["consolas", "Courier New", "Georgia", "Noto Sans"]
+                .map(String::from)
+                .to_vec())
+        };
+        let font = |family: &str, enabled: bool| json!({"family": family, "enabled": enabled});
+        let chosen = json!([font("LXGW WenKai", false), font("Georgia", true)]);
+        for (stored, families) in [
+            (json!("serif"), json!([font("Georgia", true)])),
+            (
+                json!("mono"),
+                json!([font("Consolas", true), font("Courier New", true)]),
+            ),
+            (json!("system"), json!([])),
+            (chosen.clone(), chosen.clone()),
+            (
+                json!([font("Georgia", true), font("Georgia", false)]),
+                json!([]),
+            ),
+            (json!([font(" Georgia", true)]), json!([])),
+            (json!([{"family": "Georgia"}]), json!([])),
+            (json!(["Georgia"]), json!([])),
+            (json!(null), json!([])),
+        ] {
+            fs::write(&path, json!({"editorFontFamily": stored}).to_string()).unwrap();
+            let settings = SettingsStore::open(path.clone(), installed)
+                .unwrap()
+                .snapshot()
+                .settings;
+            assert_eq!(settings["editorFontFamily"], families);
+        }
+        fs::write(&path, json!({"editorFontFamily": "mono"}).to_string()).unwrap();
+        assert!(SettingsStore::open(path.clone(), || Err("No fonts".into())).is_err());
+        let store = SettingsStore::open(path, installed).unwrap();
+        assert!(
+            store
+                .update(patch(json!({"editorFontFamily": chosen})))
+                .is_ok()
+        );
+        for value in [
+            json!("serif"),
+            json!([font("", true)]),
+            json!([font("A", true), font("A", true)]),
+            json!([{"family": "A", "enabled": "yes"}]),
+            json!([{"family": "A", "enabled": true, "size": 1}]),
+        ] {
+            assert!(
+                store
+                    .update(patch(json!({"editorFontFamily": value})))
+                    .is_err()
+            );
         }
     }
 

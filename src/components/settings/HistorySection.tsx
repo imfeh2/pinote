@@ -22,10 +22,7 @@ import {
   removeHistoryRecords,
 } from "@/lib/noteHistory";
 import { cn } from "@/lib/utils";
-import {
-  type EditorFontFamily,
-  resolveEditorFontFamily,
-} from "@/stores/settings";
+import { type EditorFont, resolveEditorFontFamily } from "@/stores/settings";
 
 const PREVIEW_DELAY_MS = 300;
 const PREVIEW_HIDE_DELAY_MS = 200;
@@ -56,7 +53,7 @@ interface HistorySectionProps {
   onOpenHistoryItem: (item: NoteHistorySearchResult) => Promise<void>;
   onDeleted: (paths: string[]) => void;
   formatDateTime: (value: string) => string;
-  editorFontFamily: EditorFontFamily;
+  editorFontFamily: EditorFont[];
   editorFontSize: number;
   editorLineHeight: number;
 }

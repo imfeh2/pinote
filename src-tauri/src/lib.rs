@@ -1,6 +1,7 @@
 mod cli;
 mod data_export;
 mod document;
+mod fonts;
 mod legacy_markdown;
 mod lifecycle;
 #[cfg(target_os = "linux")]
@@ -1073,6 +1074,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            fonts::list_font_families,
             settings::get_settings,
             settings::update_settings,
             note_history::list_note_history,

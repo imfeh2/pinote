@@ -95,11 +95,22 @@ export default {
       fontFamily: "Font family",
       fontSize: "Font size",
       lineHeight: "Line height",
-      fontFamilyOptions: {
-        system: "System",
-        serif: "Serif",
-        mono: "Monospace",
-      },
+      fontPriority:
+        "Fonts higher in the list are used first. Characters a font lacks use the next font, and finally the system font.",
+      fontList: "Fonts",
+      systemFont: "System font",
+      addFont: "Add font",
+      searchFonts: "Search fonts",
+      noFonts: "No fonts found",
+      changeFont: "Change {{font}}",
+      useFont: "Use {{font}}",
+      removeFont: "Remove {{font}}",
+      reorderFont: "Move {{font}}",
+      fontsLoadFailed: "Could not load installed fonts: {{error}}",
+      dragInstructions:
+        "Press Space or Enter to pick up a font, use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel.",
+      preview:
+        "## Weekly plan\n\n- [x] **Finish** the report\n- [ ] Buy *coffee*\n\nThe quick brown fox jumps over the lazy dog.",
     },
     glass: {
       label: "Glass effect",

@@ -3,11 +3,15 @@ import type { NoteContextMenuAction } from "@/lib/contextMenuApi";
 import defaults from "@/settings.defaults.json";
 
 type Theme = "light" | "dark" | "system";
-export type EditorFontFamily = "system" | "serif" | "mono";
 export type WheelResizeModifier = "none" | "alt" | "ctrl" | "shift" | "meta";
 export type WindowsGlassEffect = "none" | "mica" | "acrylic" | "blur";
 export type DragMouseButton = "middle" | "right";
 export type DragModifier = "none" | "alt" | "ctrl" | "meta";
+
+export interface EditorFont {
+  family: string;
+  enabled: boolean;
+}
 
 export interface ContextMenuItem {
   action: NoteContextMenuAction;
@@ -20,7 +24,7 @@ export interface Settings {
   newNoteDirectory: string;
   noteGlassEffectWindows: WindowsGlassEffect;
   noteGlassEffectMacos: boolean;
-  editorFontFamily: EditorFontFamily;
+  editorFontFamily: EditorFont[];
   editorFontSize: number;
   editorLineHeight: number;
   editorPaddingX: number;
@@ -58,12 +62,13 @@ export interface SettingsSnapshot {
 
 export const DEFAULT_SETTINGS = defaults as Settings;
 
-export function resolveEditorFontFamily(value: EditorFontFamily) {
-  if (value === "serif") {
-    return 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
-  }
-  if (value === "mono") {
-    return '"JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-  }
-  return "system-ui, -apple-system, sans-serif";
+export function resolveEditorFontFamily(fonts: EditorFont[]) {
+  return [
+    ...fonts
+      .filter((font) => font.enabled)
+      .map((font) => `"${font.family.replace(/["\\]/g, "\\$&")}"`),
+    "system-ui",
+    "-apple-system",
+    "sans-serif",
+  ].join(", ");
 }

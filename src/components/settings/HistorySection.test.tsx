@@ -66,7 +66,7 @@ async function render(results = notes(3), query = "", total = results.length) {
         onOpenHistoryItem={mocks.open}
         onDeleted={mocks.deleted}
         formatDateTime={(value) => value}
-        editorFontFamily="system"
+        editorFontFamily={[]}
         editorFontSize={14}
         editorLineHeight={1.5}
       />,

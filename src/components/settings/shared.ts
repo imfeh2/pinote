@@ -36,15 +36,6 @@ export const themeOptions = [
   { value: "dark", labelKey: "appearance.theme.options.dark" },
 ] as const;
 
-export const fontFamilyOptions = [
-  {
-    value: "system",
-    labelKey: "appearance.typography.fontFamilyOptions.system",
-  },
-  { value: "serif", labelKey: "appearance.typography.fontFamilyOptions.serif" },
-  { value: "mono", labelKey: "appearance.typography.fontFamilyOptions.mono" },
-] as const;
-
 export const wheelModifiers = ["alt", "ctrl", "shift", "meta"] as const;
 
 export const dragMouseButtonOptions: Array<{

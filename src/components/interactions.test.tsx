@@ -217,7 +217,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         setHistoryQuery={() => {}}
         onOpenHistoryItem={async () => {}}
         formatDateTime={(value) => value}
-        editorFontFamily="system"
+        editorFontFamily={[]}
         editorFontSize={14}
         editorLineHeight={1.5}
       />,
@@ -256,7 +256,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         setHistoryQuery={() => {}}
         onOpenHistoryItem={async () => {}}
         formatDateTime={(value) => value}
-        editorFontFamily="system"
+        editorFontFamily={[]}
         editorFontSize={14}
         editorLineHeight={1.5}
       />,

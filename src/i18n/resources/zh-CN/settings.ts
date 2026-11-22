@@ -66,11 +66,22 @@ export default {
       fontFamily: "字体",
       fontSize: "字号",
       lineHeight: "行高",
-      fontFamilyOptions: {
-        system: "系统字体",
-        serif: "衬线字体",
-        mono: "等宽字体",
-      },
+      fontPriority:
+        "排在前面的字体优先使用。字体里没有的字，依次使用下一个字体，最后使用系统字体。",
+      fontList: "字体列表",
+      systemFont: "系统字体",
+      addFont: "添加字体",
+      searchFonts: "搜索字体",
+      noFonts: "没有找到字体",
+      changeFont: "更换字体「{{font}}」",
+      useFont: "使用字体「{{font}}」",
+      removeFont: "移除字体「{{font}}」",
+      reorderFont: "移动字体「{{font}}」",
+      fontsLoadFailed: "无法读取已安装的字体：{{error}}",
+      dragInstructions:
+        "按空格键或回车键拿起字体，用上下方向键移动，再按空格键或回车键放下，按 Esc 键取消。",
+      preview:
+        "## 每周计划\n\n- [x] **完成**报告\n- [ ] 买*咖啡*\n\n敏捷的棕色狐狸跳过了懒狗。The quick brown fox jumps over the lazy dog.",
     },
     glass: {
       label: "玻璃效果",
