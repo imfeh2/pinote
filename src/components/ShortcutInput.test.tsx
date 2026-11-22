@@ -23,6 +23,12 @@ test("clicking starts recording and a key press saves the shortcut", async () =>
   const button = container.querySelector("button");
   if (!button) throw new Error("Missing shortcut button");
   expect(button.textContent).toBe("Alt+E");
+  const label = Array.from(container.querySelectorAll("span")).find(
+    (span) => span.textContent === "New note",
+  );
+  await act(async () => label?.click());
+  expect(document.activeElement).not.toBe(button);
+  expect(button.textContent).toBe("Alt+E");
   await act(async () => button.click());
   expect(document.activeElement).toBe(button);
   expect(button.textContent).toBe("shortcuts.pressKeys");

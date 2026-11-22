@@ -2,6 +2,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
   useCallback,
+  useId,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +23,8 @@ export function ShortcutInput({
 }: ShortcutInputProps) {
   const { t } = useTranslation("settings");
   const [isRecording, setIsRecording] = useState(false);
+  const labelId = useId();
+  const buttonId = useId();
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -35,13 +38,15 @@ export function ShortcutInput({
   );
 
   return (
-    <label className="flex items-center justify-between gap-3">
+    <div className="flex items-center justify-between gap-3">
       <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span>{label}</span>
+        <span id={labelId}>{label}</span>
         {labelMeta}
       </span>
       <button
+        id={buttonId}
         type="button"
+        aria-labelledby={`${labelId} ${buttonId}`}
         onClick={(event) => event.currentTarget.focus()}
         onFocus={() => setIsRecording(true)}
         onBlur={() => setIsRecording(false)}
@@ -50,6 +55,6 @@ export function ShortcutInput({
       >
         {isRecording ? t("shortcuts.pressKeys") : value}
       </button>
-    </label>
+    </div>
   );
 }

@@ -2,3 +2,4 @@
 - The note font weight can now be adjusted.
 - The interface can optionally use the note fonts.
 - Number fields and shortcut boxes in the settings are more compact.
+- Fixed shortcut recording starting when clicking anywhere on a shortcut row.
