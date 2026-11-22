@@ -28,6 +28,7 @@ export interface Settings {
   editorFontSize: number;
   editorLineHeight: number;
   editorFontWeight: number;
+  interfaceFollowEditorFont: boolean;
   editorPaddingX: number;
   editorPaddingY: number;
   hideNoteWindowsFromTaskbar: boolean;

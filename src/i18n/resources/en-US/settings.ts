@@ -96,6 +96,7 @@ export default {
       fontSize: "Font size",
       lineHeight: "Line height",
       fontWeight: "Font weight",
+      interfaceFont: "Use these fonts for the interface",
       fontPriority:
         "Fonts higher in the list are used first. Characters a font lacks use the next font, and finally the system font.",
       fontList: "Fonts",

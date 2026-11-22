@@ -196,6 +196,19 @@ export function AppearanceSection({
             />
           </div>
         </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground">
+            {t("appearance.typography.interfaceFont")}
+          </div>
+          <SettingsSwitch
+            checked={settings.interfaceFollowEditorFont}
+            label={t("appearance.typography.interfaceFont")}
+            onCheckedChange={(interfaceFollowEditorFont) =>
+              updateSettings({ interfaceFollowEditorFont })
+            }
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 rounded-md border border-border bg-background/60 p-3">

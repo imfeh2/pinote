@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/Button";
+import { useInterfaceFont } from "@/hooks/useInterfaceFont";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
 import {
@@ -61,6 +62,7 @@ function ContextMenuApp({
 }: NoteContextMenuContext) {
   const { t } = useTranslation("contextMenu");
   useTheme();
+  useInterfaceFont();
   const { settings } = useSettings();
   const menuWindow = useMemo(() => getCurrentWindow(), []);
   const menuWindowLabel = menuWindow.label;

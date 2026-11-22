@@ -25,6 +25,7 @@ import {
 } from "@/components/settings/shared";
 import { UpdateDialog } from "@/components/settings/UpdateDialog";
 import { WindowSection } from "@/components/settings/WindowSection";
+import { useInterfaceFont } from "@/hooks/useInterfaceFont";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
 import { exportAppData } from "@/lib/dataExport";
@@ -132,6 +133,7 @@ function getInitialSection(): SettingsSection {
 
 export function SettingsApp() {
   useTheme();
+  useInterfaceFont();
   const { t, i18n } = useTranslation("settings");
   const { settings, updateSettings: saveSettings } = useSettings();
   const [settingsError, setSettingsError] = useState(false);

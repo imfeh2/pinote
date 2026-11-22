@@ -13,6 +13,7 @@ import { AlertDialog } from "@/components/AlertDialog";
 import { Checkbox } from "@/components/Checkbox";
 import { Editor } from "@/components/Editor";
 import { WindowDragHandle } from "@/components/WindowDragHandle";
+import { useInterfaceFont } from "@/hooks/useInterfaceFont";
 import { useNoteWindowActions } from "@/hooks/useNoteWindowActions";
 import { useNoteWindowMouseInteractions } from "@/hooks/useNoteWindowMouseInteractions";
 import { useNoteWindowState } from "@/hooks/useNoteWindowState";
@@ -73,6 +74,7 @@ function App({
 }) {
   const { t } = useTranslation("note");
   const { toggleTheme } = useTheme();
+  useInterfaceFont();
   const { alwaysOnTop, toggleAlwaysOnTop: toggleWindowAlwaysOnTop } =
     useWindowControl();
   const { settings, updateSettings } = useSettings();

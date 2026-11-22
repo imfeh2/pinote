@@ -8,6 +8,7 @@
   "editorFontSize": 15,
   "editorLineHeight": 1.2,
   "editorFontWeight": 400,
+  "interfaceFollowEditorFont": false,
   "editorPaddingX": 10,
   "editorPaddingY": 10,
   "hideNoteWindowsFromTaskbar": true,

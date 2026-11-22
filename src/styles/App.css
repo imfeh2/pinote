@@ -81,7 +81,13 @@
   body {
     background: transparent;
     color: var(--color-foreground);
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: var(
+      --interface-font-family,
+      system-ui,
+      -apple-system,
+      sans-serif
+    );
+    font-weight: var(--interface-font-weight, 400);
     margin: 0;
     padding: 0;
     overflow: hidden;
