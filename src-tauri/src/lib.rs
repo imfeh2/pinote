@@ -1075,6 +1075,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             fonts::list_font_families,
+            shortcut::pause_global_shortcuts,
+            shortcut::resume_global_shortcuts,
             settings::get_settings,
             settings::update_settings,
             note_history::list_note_history,

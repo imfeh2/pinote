@@ -86,6 +86,25 @@ pub fn apply_global_shortcuts(
     )
 }
 
+#[tauri::command]
+pub fn pause_global_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|error| format!("failed to clear global shortcuts: {error}"))
+}
+
+#[tauri::command]
+pub fn resume_global_shortcuts(app: tauri::AppHandle) -> GlobalShortcutRegistrationSnapshot {
+    let shortcuts = load_shortcuts(&app);
+    register_shortcuts(
+        &app,
+        &shortcuts.new_note,
+        &shortcuts.restore_window,
+        &shortcuts.show_all_hidden_windows,
+        &shortcuts.toggle_visible_windows,
+    )
+}
+
 fn register_shortcuts(
     app: &tauri::AppHandle,
     new_note_shortcut_text: &str,

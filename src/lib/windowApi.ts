@@ -101,6 +101,14 @@ export async function setGlobalShortcuts(shortcuts: GlobalShortcutConfig) {
   });
 }
 
+export async function pauseGlobalShortcuts() {
+  return invoke<void>("pause_global_shortcuts");
+}
+
+export async function resumeGlobalShortcuts() {
+  return invoke<GlobalShortcutRegistrationSnapshot>("resume_global_shortcuts");
+}
+
 export async function setNoteWindowsSkipTaskbar(skipTaskbar: boolean) {
   const windows = await WebviewWindow.getAll();
   const targets = windows.filter((window) => isNoteWindowLabel(window.label));
