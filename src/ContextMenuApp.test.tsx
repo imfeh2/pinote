@@ -3,14 +3,14 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import type { NoteContextMenuContext } from "@/lib/contextMenuApi";
 import { type ContextMenuItem, DEFAULT_SETTINGS } from "@/stores/settings";
 import ContextMenuApp from "./ContextMenuApp";
 
 const mocks = vi.hoisted(() => ({
-  setSize: vi.fn(async () => {}),
-  setPosition: vi.fn(async (_position: { x: number; y: number }) => {}),
-  factor: 1,
-  workHeight: 1080,
+  setSize: vi.fn(async (_size: { width: number; height: number }) => {}),
+  show: vi.fn(async () => {}),
+  sync: null as ((context: NoteContextMenuContext) => void) | null,
   contentHeight: 240,
   hideTaskbar: true,
   items: [] as ContextMenuItem[],
@@ -21,17 +21,7 @@ vi.mock("@tauri-apps/api/window", () => ({
     label: "menu",
     hide: async () => {},
     onFocusChanged: async () => () => {},
-    scaleFactor: async () => mocks.factor,
-    innerSize: async () => ({ width: 224, height: 180 }),
-    outerPosition: async () => ({ x: 0, y: 0 }),
     setSize: mocks.setSize,
-    setPosition: mocks.setPosition,
-  }),
-  monitorFromPoint: async () => ({
-    workArea: {
-      position: { x: 0, y: 0 },
-      size: { width: 1920, height: mocks.workHeight },
-    },
   }),
 }));
 vi.mock("@/hooks/useSettings", () => ({
@@ -47,8 +37,14 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("@/lib/contextMenuApi", () => ({
-  listenNoteContextMenuSync: async () => () => {},
+  listenNoteContextMenuSync: async (
+    handler: (context: NoteContextMenuContext) => void,
+  ) => {
+    mocks.sync = handler;
+    return () => {};
+  },
   emitNoteContextMenuAction: mocks.emitAction,
+  showNoteContextMenu: mocks.show,
 }));
 vi.mock("@/lib/logger", () => ({ logError: vi.fn() }));
 
@@ -60,8 +56,7 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();
   vi.clearAllMocks();
-  mocks.factor = 1;
-  mocks.workHeight = 1080;
+  mocks.sync = null;
   mocks.contentHeight = 240;
   mocks.hideTaskbar = true;
   mocks.items = DEFAULT_SETTINGS.contextMenuItems;
@@ -106,25 +101,34 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-async function renderMenu(alwaysOnTop = false) {
-  await act(async () =>
-    root.render(
-      <ContextMenuApp
-        targetWindowLabel="note"
-        noteId="test"
-        notePath="test.md"
-        anchorX={100}
-        anchorY={100}
-        noteOpacity={1}
-        noteReadOnly={false}
-        maximized={false}
-        alwaysOnTop={alwaysOnTop}
-      />,
-    ),
-  );
+function context(
+  overrides: Partial<NoteContextMenuContext> = {},
+): NoteContextMenuContext {
+  return {
+    targetWindowLabel: "note",
+    noteId: "test",
+    notePath: "test.md",
+    noteOpacity: 1,
+    noteReadOnly: false,
+    maximized: false,
+    alwaysOnTop: false,
+    ...overrides,
+  };
+}
+
+async function openMenu(overrides: Partial<NoteContextMenuContext> = {}) {
+  await act(async () => mocks.sync?.(context(overrides)));
   await act(async () => {
     await vi.runAllTimersAsync();
   });
+}
+
+async function renderMenu(alwaysOnTop = false) {
+  await act(async () => root.render(<ContextMenuApp />));
+  await act(async () => {
+    await vi.runAllTimersAsync();
+  });
+  await openMenu({ alwaysOnTop });
   const panel = container.querySelector<HTMLElement>(
     ".pinote-context-menu-panel",
   );
@@ -132,30 +136,41 @@ async function renderMenu(alwaysOnTop = false) {
   return panel;
 }
 
-test.each([
-  { factor: 1, workHeight: 1080, expectedHeight: 240 },
-  { factor: 1.25, workHeight: 1080, expectedHeight: 300 },
-  { factor: 1.25, workHeight: 200, expectedHeight: 300 },
-])("uses full content height: $factor / $workHeight", async ({
-  factor,
-  workHeight,
-  expectedHeight,
-}) => {
-  mocks.factor = factor;
-  mocks.workHeight = workHeight;
-  const panel = await renderMenu();
+test("sizes the hidden window to its content before the first open", async () => {
+  await act(async () => root.render(<ContextMenuApp />));
   expect(mocks.setSize).toHaveBeenCalledWith(
-    expect.objectContaining({ height: expectedHeight }),
+    expect.objectContaining({ height: 240 }),
   );
-  expect(panel.textContent).toContain("closeWindow");
-  expect(panel.textContent).toContain("deleteNote");
+  expect(mocks.show).not.toHaveBeenCalled();
+});
+
+test("shows the menu after the new note is in place", async () => {
+  await act(async () => root.render(<ContextMenuApp />));
+  await act(async () => {
+    await vi.runAllTimersAsync();
+  });
+  let shownTitle: string | null = null;
+  mocks.show.mockImplementation(async () => {
+    shownTitle = container.textContent;
+  });
+  await openMenu({ noteId: "second" });
+  expect(mocks.show).toHaveBeenCalledTimes(1);
+  expect(shownTitle).toContain("second");
+});
+
+test("menu size does not depend on the note state", async () => {
+  await renderMenu();
+  const calls = mocks.setSize.mock.calls.length;
+  await openMenu({ alwaysOnTop: true, maximized: true, noteReadOnly: true });
+  expect(mocks.setSize).toHaveBeenCalledTimes(calls);
+  const toggle = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent === "disableAlwaysOnTop",
+  );
   expect(
-    mocks.setPosition.mock.calls.every(
-      ([position]) =>
-        position.y >= 8 &&
-        position.y <= Math.max(8, workHeight - expectedHeight - 8),
-    ),
-  ).toBe(true);
+    toggle
+      ?.querySelector("[data-alternative]")
+      ?.getAttribute("data-alternative"),
+  ).toBe("enableAlwaysOnTop");
 });
 
 test("all menu actions share layout and interaction styles while retaining their actions", async () => {

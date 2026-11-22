@@ -298,7 +298,11 @@ export function useNoteWindowActions(options: UseNoteWindowActionsOptions) {
       if (unlisten) {
         unlisten();
       }
-      void closeNoteContextMenu(windowLabel);
+      closeNoteContextMenu(windowLabel).catch((error) => {
+        logError("note-window", "close_context_menu_failed", error, {
+          windowId: windowLabel,
+        });
+      });
     };
   }, [
     closeWindow,

@@ -154,7 +154,11 @@ export function useNoteWindowMouseInteractions(
   const suppressEditorScrollTopRef = useRef(0);
 
   const closeContextMenu = useCallback(() => {
-    void closeNoteContextMenu(windowLabel);
+    closeNoteContextMenu(windowLabel).catch((error) => {
+      logError("note-window", "close_context_menu_failed", error, {
+        windowId: windowLabel,
+      });
+    });
   }, [windowLabel]);
 
   const suppressContextMenuOnce = useCallback(() => {
@@ -457,31 +461,24 @@ export function useNoteWindowMouseInteractions(
         suppressContextMenuOnce();
         if (!state.moved) {
           closeContextMenu();
-          void appWindow
-            .scaleFactor()
-            .then((scaleFactor) => {
-              return openNoteContextMenu({
-                parentWindowLabel: windowLabel,
-                targetWindowLabel: windowLabel,
-                noteId,
-                notePath,
-                screenX: state.pointerCurrentX,
-                screenY: state.pointerCurrentY,
-                scaleFactor,
-                noteOpacity: noteOpacityRef.current,
-                noteReadOnly: noteReadOnlyRef.current,
-              });
-            })
-            .catch((error) => {
-              logError(
-                "note-window",
-                "open_context_menu_by_right_click_failed",
-                error,
-                {
-                  windowId: windowLabel,
-                },
-              );
-            });
+          openNoteContextMenu({
+            targetWindowLabel: windowLabel,
+            noteId,
+            notePath,
+            screenX: state.pointerCurrentX,
+            screenY: state.pointerCurrentY,
+            noteOpacity: noteOpacityRef.current,
+            noteReadOnly: noteReadOnlyRef.current,
+          }).catch((error) => {
+            logError(
+              "note-window",
+              "open_context_menu_by_right_click_failed",
+              error,
+              {
+                windowId: windowLabel,
+              },
+            );
+          });
         }
       }
       if (shouldToggleAlwaysOnTop && state.button === 1 && !state.moved) {
@@ -510,7 +507,6 @@ export function useNoteWindowMouseInteractions(
       window.removeEventListener("blur", handleBlur);
     };
   }, [
-    appWindow,
     closeContextMenu,
     interactionBlocked,
     noteId,
@@ -688,30 +684,22 @@ export function useNoteWindowMouseInteractions(
       event.preventDefault();
       const screenX = event.screenX;
       const screenY = event.screenY;
-      void appWindow
-        .scaleFactor()
-        .then((scaleFactor) => {
-          return openNoteContextMenu({
-            parentWindowLabel: windowLabel,
-            targetWindowLabel: windowLabel,
-            noteId,
-            notePath,
-            screenX,
-            screenY,
-            scaleFactor,
-            noteOpacity: noteOpacityRef.current,
-            noteReadOnly: noteReadOnlyRef.current,
-          });
-        })
-        .catch((error) => {
-          logError("note-window", "open_context_menu_window_failed", error, {
-            windowId: windowLabel,
-            noteId,
-          });
+      openNoteContextMenu({
+        targetWindowLabel: windowLabel,
+        noteId,
+        notePath,
+        screenX,
+        screenY,
+        noteOpacity: noteOpacityRef.current,
+        noteReadOnly: noteReadOnlyRef.current,
+      }).catch((error) => {
+        logError("note-window", "open_context_menu_window_failed", error, {
+          windowId: windowLabel,
+          noteId,
         });
+      });
     },
     [
-      appWindow,
       interactionBlocked,
       noteId,
       noteOpacityRef,

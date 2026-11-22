@@ -5,3 +5,4 @@
 - Keyboard shortcuts can be restored to their defaults.
 - Fixed shortcut recording starting when clicking anywhere on a shortcut row.
 - Fixed existing global shortcuts firing while a new shortcut is being recorded.
+- The note context menu opens faster.

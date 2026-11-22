@@ -4,7 +4,6 @@ import { logError, logInfo } from "@/lib/logger";
 import type { WindowBounds, WindowVisibility } from "@/lib/windowStateCache";
 
 const NOTE_WINDOW_LABEL_PREFIX = "note-";
-const NOTE_CONTEXT_MENU_WINDOW_SUFFIX = "-context-menu";
 
 interface OpenNoteWindowOptions {
   notePath?: string;
@@ -50,10 +49,7 @@ export interface GlobalShortcutRegistrationSnapshot {
 }
 
 function isNoteWindowLabel(label: string) {
-  return (
-    label.startsWith(NOTE_WINDOW_LABEL_PREFIX) &&
-    !label.endsWith(NOTE_CONTEXT_MENU_WINDOW_SUFFIX)
-  );
+  return label.startsWith(NOTE_WINDOW_LABEL_PREFIX);
 }
 
 export async function openSettingsWindow(section?: string) {

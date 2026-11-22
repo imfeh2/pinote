@@ -16,7 +16,6 @@ use crate::{
 };
 
 const NOTE_WINDOW_PREFIX: &str = "note-";
-const NOTE_CONTEXT_MENU_WINDOW_SUFFIX: &str = "-context-menu";
 const NOTE_WINDOW_BROUGHT_BACK_EVENT: &str = "note-window-brought-back";
 const NOTE_WINDOW_RECOVERY_MARGIN: i64 = 16;
 const NOTE_WINDOW_RECOVERY_OFFSET: i64 = 28;
@@ -42,19 +41,8 @@ impl ScreenRect {
     }
 }
 
-pub fn destroy_note_context_menu<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    note_window_label: &str,
-) -> tauri::Result<()> {
-    let label = format!("{note_window_label}{NOTE_CONTEXT_MENU_WINDOW_SUFFIX}");
-    if let Some(menu) = app.get_webview_window(&label) {
-        menu.destroy()?;
-    }
-    Ok(())
-}
-
 fn is_note_window_label(label: &str) -> bool {
-    label.starts_with(NOTE_WINDOW_PREFIX) && !label.ends_with(NOTE_CONTEXT_MENU_WINDOW_SUFFIX)
+    label.starts_with(NOTE_WINDOW_PREFIX)
 }
 
 fn monitor_work_area(monitor: &tauri::Monitor) -> ScreenRect {
@@ -702,51 +690,4 @@ pub fn build_note_window(
         ),
     }
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    };
-
-    #[test]
-    fn destroying_a_note_menu_keeps_other_menus_alive() {
-        let app = tauri::test::mock_app();
-        let note = WebviewWindowBuilder::new(&app, "note-a", Default::default())
-            .build()
-            .unwrap();
-        let menu = WebviewWindowBuilder::new(&app, "note-a-context-menu", Default::default())
-            .visible(false)
-            .build()
-            .unwrap();
-        let other = WebviewWindowBuilder::new(&app, "note-b-context-menu", Default::default())
-            .build()
-            .unwrap();
-
-        let iterations = Arc::new(AtomicUsize::new(0));
-        let observed = Arc::new(AtomicUsize::new(usize::MAX));
-        let result = observed.clone();
-        app.run(move |app, event| match event {
-            tauri::RunEvent::Ready => {
-                destroy_note_context_menu(app, "note-without-menu").unwrap();
-                destroy_note_context_menu(app, "note-a").unwrap();
-                note.destroy().unwrap();
-            }
-            tauri::RunEvent::MainEventsCleared => {
-                match iterations.fetch_add(1, Ordering::SeqCst) + 1 {
-                    2 => other.destroy().unwrap(),
-                    6 => menu.destroy().unwrap(),
-                    _ => {}
-                }
-            }
-            tauri::RunEvent::ExitRequested { .. } => {
-                observed.store(iterations.load(Ordering::SeqCst), Ordering::SeqCst);
-            }
-            _ => {}
-        });
-        assert_eq!(result.load(Ordering::SeqCst), 2);
-    }
 }

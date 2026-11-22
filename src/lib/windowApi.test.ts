@@ -23,7 +23,7 @@ test("taskbar updates finish every note window before reporting a failure", asyn
       },
     },
     { label: "note-b", setSkipTaskbar: slow },
-    { label: "note-a-context-menu", setSkipTaskbar: other },
+    { label: "context-menu", setSkipTaskbar: other },
     { label: "settings", setSkipTaskbar: other },
   ]);
   let settled = false;

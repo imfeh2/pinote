@@ -47,6 +47,7 @@ vi.mock("@/hooks/useSettings", async () => {
 });
 vi.mock("@/lib/contextMenuApi", () => ({
   emitNoteContextMenuAction: vi.fn(),
+  showNoteContextMenu: vi.fn(async () => {}),
   listenNoteContextMenuSync: async (
     listener: (context: NoteContextMenuContext) => void,
   ) => {
@@ -282,14 +283,13 @@ test("menu context changes recalculate title overflow even without ResizeObserve
       targetWindowLabel: "note",
       noteId: "short",
       notePath: "/notes/a.md",
-      anchorX: 10,
-      anchorY: 20,
       noteOpacity: 1,
       noteReadOnly: false,
       maximized: false,
       alwaysOnTop: false,
     };
-    await act(async () => root.render(<ContextMenuApp {...context} />));
+    await act(async () => root.render(<ContextMenuApp />));
+    await act(async () => mocks.menuSync?.(context));
     const viewport = container.querySelector<HTMLElement>(
       ".pinote-menu-title-viewport",
     );

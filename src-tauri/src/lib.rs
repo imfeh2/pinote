@@ -1,4 +1,5 @@
 mod cli;
+mod context_menu;
 mod data_export;
 mod document;
 mod fonts;
@@ -1074,6 +1075,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            context_menu::open_context_menu,
+            context_menu::show_context_menu,
+            context_menu::close_context_menu,
             fonts::list_font_families,
             shortcut::pause_global_shortcuts,
             shortcut::resume_global_shortcuts,
@@ -1160,6 +1164,10 @@ pub fn run() {
             }
             shortcut::setup_shortcuts(&handle)?;
             window::open_startup_update_window(&handle);
+            handle.manage(context_menu::ContextMenuTarget::default());
+            if let Err(error) = context_menu::create_context_menu_window(&handle) {
+                error!("context_menu_window_failed error={error}");
+            }
             tauri::async_runtime::spawn(async move {
                 let skip_taskbar = load_hide_note_windows_from_taskbar(&handle);
                 let restored_count = match restore_cached_note_windows(&handle, skip_taskbar).await
