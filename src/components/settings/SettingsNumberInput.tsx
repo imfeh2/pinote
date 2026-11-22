@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface SettingsNumberInputProps {
   value: number;
@@ -79,35 +80,48 @@ export function SettingsNumberInput({
   };
 
   return (
-    <div className="flex h-8 w-28 overflow-hidden rounded-md border border-border bg-background transition-colors focus-within:border-primary">
-      <div className="relative min-w-0 flex-1">
-        <input
-          type="text"
-          inputMode="decimal"
-          aria-label={label}
-          value={draft}
-          onChange={(event) => updateDraft(event.target.value)}
-          onBlur={commitDraft}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              commitDraft();
-              event.currentTarget.blur();
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              increment(1);
-            } else if (event.key === "ArrowDown") {
-              event.preventDefault();
-              increment(-1);
-            }
-          }}
-          className="h-full w-full bg-transparent px-2 pr-7 text-right text-xs tabular-nums text-foreground outline-none"
+    <div className="flex h-8 w-24 overflow-hidden rounded-md border border-border bg-background transition-colors focus-within:border-primary">
+      <label className="relative flex min-w-0 flex-1 cursor-text items-center px-2">
+        <span className="min-w-0 flex-1 basis-0" />
+        <span className="inline-grid min-w-0 overflow-hidden">
+          <span
+            aria-hidden="true"
+            className="invisible col-start-1 row-start-1 text-xs whitespace-pre tabular-nums"
+          >
+            {draft || " "}
+          </span>
+          <input
+            size={1}
+            type="text"
+            inputMode="decimal"
+            aria-label={label}
+            value={draft}
+            onChange={(event) => updateDraft(event.target.value)}
+            onBlur={commitDraft}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitDraft();
+                event.currentTarget.blur();
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                increment(1);
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                increment(-1);
+              }
+            }}
+            className="col-start-1 row-start-1 w-full min-w-0 bg-transparent p-0 text-center text-xs tabular-nums text-foreground outline-none"
+          />
+        </span>
+        <span
+          className={cn("flex-1 basis-0", suffix ? "min-w-3.5" : "min-w-0")}
         />
         {suffix ? (
           <span className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-[10px] text-muted-foreground">
             {suffix}
           </span>
         ) : null}
-      </div>
+      </label>
       <div className="flex w-6 shrink-0 flex-col border-l border-border">
         <button
           type="button"

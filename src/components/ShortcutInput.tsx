@@ -24,7 +24,7 @@ export function ShortcutInput({
   const [isRecording, setIsRecording] = useState(false);
 
   const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
+    (event: KeyboardEvent<HTMLButtonElement>) => {
       event.preventDefault();
       const next = eventToShortcut(event);
       if (!next) return;
@@ -40,15 +40,16 @@ export function ShortcutInput({
         <span>{label}</span>
         {labelMeta}
       </span>
-      <input
-        type="text"
-        readOnly
-        value={isRecording ? t("shortcuts.pressKeys") : value}
+      <button
+        type="button"
+        onClick={(event) => event.currentTarget.focus()}
         onFocus={() => setIsRecording(true)}
         onBlur={() => setIsRecording(false)}
         onKeyDown={handleKeyDown}
-        className="w-36 rounded-md border border-border bg-background px-2 py-1 text-right text-xs text-foreground outline-none transition-colors focus:border-primary"
-      />
+        className="shrink-0 cursor-pointer rounded-md border border-border bg-background px-2 py-1 text-xs whitespace-nowrap text-foreground outline-none transition-colors focus:border-primary"
+      >
+        {isRecording ? t("shortcuts.pressKeys") : value}
+      </button>
     </label>
   );
 }

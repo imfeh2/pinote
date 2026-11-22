@@ -1,3 +1,4 @@
 - The note font can now be any installed font, and several fonts can be listed in order of priority.
 - The note font weight can now be adjusted.
 - The interface can optionally use the note fonts.
+- Number fields and shortcut boxes in the settings are more compact.

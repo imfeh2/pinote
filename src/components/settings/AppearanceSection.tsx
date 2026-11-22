@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { FontFamilySetting } from "@/components/settings/FontFamilySetting";
+import { SettingsFieldRow } from "@/components/settings/SettingsFieldRow";
 import { SettingsNumberInput } from "@/components/settings/SettingsNumberInput";
 import { SettingsSwitch } from "@/components/settings/SettingsSwitch";
 import {
@@ -147,7 +148,7 @@ export function AppearanceSection({
           onChange={(editorFontFamily) => updateSettings({ editorFontFamily })}
         />
 
-        <div className="grid grid-cols-2 gap-3">
+        <SettingsFieldRow count={3}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-xs text-muted-foreground">
               {t("appearance.typography.fontSize")}
@@ -161,6 +162,21 @@ export function AppearanceSection({
               label={t("appearance.typography.fontSize")}
               onValueChange={(editorFontSize) =>
                 updateSettings({ editorFontSize })
+              }
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground">
+              {t("appearance.typography.fontWeight")}
+            </div>
+            <SettingsNumberInput
+              value={settings.editorFontWeight}
+              min={100}
+              max={900}
+              step={100}
+              label={t("appearance.typography.fontWeight")}
+              onValueChange={(editorFontWeight) =>
+                updateSettings({ editorFontWeight })
               }
             />
           </div>
@@ -180,22 +196,7 @@ export function AppearanceSection({
               }
             />
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xs text-muted-foreground">
-              {t("appearance.typography.fontWeight")}
-            </div>
-            <SettingsNumberInput
-              value={settings.editorFontWeight}
-              min={100}
-              max={900}
-              step={100}
-              label={t("appearance.typography.fontWeight")}
-              onValueChange={(editorFontWeight) =>
-                updateSettings({ editorFontWeight })
-              }
-            />
-          </div>
-        </div>
+        </SettingsFieldRow>
 
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground">
@@ -216,7 +217,7 @@ export function AppearanceSection({
           {t("appearance.spacing.label")}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <SettingsFieldRow count={2}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-xs text-muted-foreground">
               {t("appearance.spacing.horizontal")}
@@ -249,7 +250,7 @@ export function AppearanceSection({
               }
             />
           </div>
-        </div>
+        </SettingsFieldRow>
       </div>
     </div>
   );
