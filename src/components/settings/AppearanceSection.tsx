@@ -143,6 +143,7 @@ export function AppearanceSection({
           families={settings.editorFontFamily}
           fontSize={settings.editorFontSize}
           lineHeight={settings.editorLineHeight}
+          fontWeight={settings.editorFontWeight}
           onChange={(editorFontFamily) => updateSettings({ editorFontFamily })}
         />
 
@@ -176,6 +177,21 @@ export function AppearanceSection({
               label={t("appearance.typography.lineHeight")}
               onValueChange={(editorLineHeight) =>
                 updateSettings({ editorLineHeight })
+              }
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground">
+              {t("appearance.typography.fontWeight")}
+            </div>
+            <SettingsNumberInput
+              value={settings.editorFontWeight}
+              min={100}
+              max={900}
+              step={100}
+              label={t("appearance.typography.fontWeight")}
+              onValueChange={(editorFontWeight) =>
+                updateSettings({ editorFontWeight })
               }
             />
           </div>

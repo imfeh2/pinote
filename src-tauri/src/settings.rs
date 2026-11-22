@@ -127,6 +127,9 @@ fn valid_value(key: &str, value: &Value, default: &Value) -> bool {
             number.is_finite()
                 && match key {
                     "editorFontSize" | "editorLineHeight" => number > 0.0,
+                    "editorFontWeight" => {
+                        (100.0..=900.0).contains(&number) && number.fract() == 0.0
+                    }
                     "editorPaddingX" | "editorPaddingY" => number >= 0.0,
                     _ => true,
                 }
@@ -485,6 +488,27 @@ mod tests {
             json!({"dragMouseButton": "right"}),
         ] {
             assert!(store.update(patch(value)).is_err());
+        }
+    }
+
+    #[test]
+    fn font_weight_is_a_whole_number_from_100_to_900() {
+        let directory = storage::test_directory();
+        let store = SettingsStore::new(directory.path().join("settings.json")).unwrap();
+        assert_eq!(store.snapshot().settings["editorFontWeight"], 400);
+        for weight in [100, 450, 900] {
+            assert!(
+                store
+                    .update(patch(json!({"editorFontWeight": weight})))
+                    .is_ok()
+            );
+        }
+        for weight in [json!(50), json!(950), json!(450.5), json!("400")] {
+            assert!(
+                store
+                    .update(patch(json!({"editorFontWeight": weight})))
+                    .is_err()
+            );
         }
     }
 

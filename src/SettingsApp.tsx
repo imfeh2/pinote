@@ -860,6 +860,7 @@ export function SettingsApp() {
         editorFontFamily={settings.editorFontFamily}
         editorFontSize={settings.editorFontSize}
         editorLineHeight={settings.editorLineHeight}
+        editorFontWeight={settings.editorFontWeight}
       />
     ) : activeSection === "shortcuts" ? (
       <ShortcutsSection

@@ -374,6 +374,7 @@
   font-family: var(--editor-font-family, inherit);
   font-size: var(--editor-font-size, 0.875rem);
   line-height: var(--editor-line-height, 1.625);
+  font-weight: var(--editor-font-weight, 400);
 }
 
 .note-editor .cm-editor .cm-content {
@@ -391,33 +392,33 @@
 
 .note-editor .cm-editor .cm-md-h1 {
   font-size: 1.875em;
-  font-weight: 700;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 300), 900);
   line-height: 1.25;
 }
 
 .note-editor .cm-editor .cm-md-h2 {
   font-size: 1.5em;
-  font-weight: 600;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 200), 900);
   line-height: 1.3;
 }
 
 .note-editor .cm-editor .cm-md-h3 {
   font-size: 1.25em;
-  font-weight: 500;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 100), 900);
 }
 
 .note-editor .cm-editor .cm-md-h4 {
-  font-weight: 500;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 100), 900);
 }
 
 .note-editor .cm-editor .cm-md-h5,
 .note-editor .cm-editor .cm-md-h6 {
   font-size: 0.875em;
-  font-weight: 500;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 100), 900);
 }
 
 .note-editor .cm-editor .cm-md-strong {
-  font-weight: 700;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 300), 900);
 }
 
 .note-editor .cm-editor .cm-md-em {
@@ -523,7 +524,7 @@
 
 .note-editor .cm-editor .cm-md-alert-title {
   color: var(--pinote-alert-color);
-  font-weight: 600;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 200), 900);
 }
 
 .note-editor .cm-editor .cm-md-rule {
@@ -573,7 +574,7 @@
 }
 
 .note-editor .cm-editor .cm-md-table th {
-  font-weight: 600;
+  font-weight: min(calc(var(--editor-font-weight, 400) + 200), 900);
 }
 
 .note-editor .cm-editor .cm-md-table code {

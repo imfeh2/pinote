@@ -127,11 +127,13 @@ export function FontFamilySetting({
   families,
   fontSize,
   lineHeight,
+  fontWeight,
   onChange,
 }: {
   families: EditorFont[];
   fontSize: number;
   lineHeight: number;
+  fontWeight: number;
   onChange: (families: EditorFont[]) => Promise<void>;
 }) {
   const { t } = useTranslation("settings");
@@ -198,6 +200,7 @@ export function FontFamilySetting({
             "--editor-font-family": resolveEditorFontFamily(current),
             "--editor-font-size": `${fontSize}px`,
             "--editor-line-height": lineHeight.toString(),
+            "--editor-font-weight": fontWeight.toString(),
             "--editor-padding-x": "0px",
             "--editor-padding-y": "0px",
           } as CSSProperties

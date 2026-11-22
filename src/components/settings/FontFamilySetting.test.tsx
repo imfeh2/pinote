@@ -29,6 +29,7 @@ async function render(families: EditorFont[]) {
         families={families}
         fontSize={15}
         lineHeight={1.2}
+        fontWeight={400}
         onChange={change}
       />,
     ),

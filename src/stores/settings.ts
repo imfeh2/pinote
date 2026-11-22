@@ -27,6 +27,7 @@ export interface Settings {
   editorFontFamily: EditorFont[];
   editorFontSize: number;
   editorLineHeight: number;
+  editorFontWeight: number;
   editorPaddingX: number;
   editorPaddingY: number;
   hideNoteWindowsFromTaskbar: boolean;

@@ -95,6 +95,7 @@ export default {
       fontFamily: "Font family",
       fontSize: "Font size",
       lineHeight: "Line height",
+      fontWeight: "Font weight",
       fontPriority:
         "Fonts higher in the list are used first. Characters a font lacks use the next font, and finally the system font.",
       fontList: "Fonts",

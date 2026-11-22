@@ -220,6 +220,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         editorFontFamily={[]}
         editorFontSize={14}
         editorLineHeight={1.5}
+        editorFontWeight={400}
       />,
     ),
   );
@@ -259,6 +260,7 @@ test("history preview opens on focus, closes with Escape, and ignores a cancelle
         editorFontFamily={[]}
         editorFontSize={14}
         editorLineHeight={1.5}
+        editorFontWeight={400}
       />,
     ),
   );

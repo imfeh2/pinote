@@ -69,6 +69,7 @@ async function render(results = notes(3), query = "", total = results.length) {
         editorFontFamily={[]}
         editorFontSize={14}
         editorLineHeight={1.5}
+        editorFontWeight={400}
       />,
     ),
   );

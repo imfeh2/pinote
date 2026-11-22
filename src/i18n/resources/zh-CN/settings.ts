@@ -66,6 +66,7 @@ export default {
       fontFamily: "字体",
       fontSize: "字号",
       lineHeight: "行高",
+      fontWeight: "字重",
       fontPriority:
         "排在前面的字体优先使用。字体里没有的字，依次使用下一个字体，最后使用系统字体。",
       fontList: "字体列表",

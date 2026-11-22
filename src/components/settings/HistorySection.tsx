@@ -56,6 +56,7 @@ interface HistorySectionProps {
   editorFontFamily: EditorFont[];
   editorFontSize: number;
   editorLineHeight: number;
+  editorFontWeight: number;
 }
 
 export function HistorySection({
@@ -72,6 +73,7 @@ export function HistorySection({
   editorFontFamily,
   editorFontSize,
   editorLineHeight,
+  editorFontWeight,
 }: HistorySectionProps) {
   const { t } = useTranslation("settings");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -479,6 +481,7 @@ export function HistorySection({
                       resolveEditorFontFamily(editorFontFamily),
                     "--editor-font-size": `${editorFontSize}px`,
                     "--editor-line-height": editorLineHeight.toString(),
+                    "--editor-font-weight": editorFontWeight.toString(),
                   } as CSSProperties
                 }
               >
