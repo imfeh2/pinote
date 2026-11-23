@@ -1,4 +1,4 @@
-import { LogicalSize } from "@tauri-apps/api/dpi";
+import { PhysicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
@@ -270,18 +270,20 @@ function ContextMenuApp() {
         parsePx(shellStyles.paddingTop) +
         parsePx(shellStyles.paddingBottom),
     );
+    const width = Math.ceil(widthCss * window.devicePixelRatio);
+    const height = Math.ceil(heightCss * window.devicePixelRatio);
     const applied = appliedSizeRef.current;
-    if (applied && applied.width === widthCss && applied.height === heightCss) {
+    if (applied && applied.width === width && applied.height === height) {
       return;
     }
-    appliedSizeRef.current = { width: widthCss, height: heightCss };
+    appliedSizeRef.current = { width, height };
     resizingRef.current = menuWindow
-      .setSize(new LogicalSize(widthCss, heightCss))
+      .setSize(new PhysicalSize(width, height))
       .catch((error) => {
         logError("context-menu", "fit_window_to_content_failed", error, {
           windowId: menuWindow.label,
-          width: widthCss,
-          height: heightCss,
+          width,
+          height,
         });
       });
   }, [menuWindow, updateTitleOverflow]);
@@ -289,6 +291,22 @@ function ContextMenuApp() {
   useLayoutEffect(() => {
     fitWindowToContent();
   });
+
+  useEffect(() => {
+    let query: MediaQueryList;
+    const watch = () => {
+      query = window.matchMedia(
+        `(resolution: ${window.devicePixelRatio}dppx)`,
+      );
+      query.addEventListener("change", handleChange, { once: true });
+    };
+    const handleChange = () => {
+      fitWindowToContent();
+      watch();
+    };
+    watch();
+    return () => query.removeEventListener("change", handleChange);
+  }, [fitWindowToContent]);
 
   useEffect(() => {
     const shell = shellRef.current;

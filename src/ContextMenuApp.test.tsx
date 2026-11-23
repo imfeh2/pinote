@@ -144,6 +144,30 @@ test("sizes the hidden window to its content before the first open", async () =>
   expect(mocks.show).not.toHaveBeenCalled();
 });
 
+test("sizes the window in device pixels and refits when the scale changes", async () => {
+  const listeners: (() => void)[] = [];
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (query) =>
+      ({
+        media: query,
+        addEventListener: (_type: string, listener: () => void) => {
+          listeners.push(listener);
+        },
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  );
+  vi.spyOn(window, "devicePixelRatio", "get").mockReturnValue(1.25);
+  await act(async () => root.render(<ContextMenuApp />));
+  expect(mocks.setSize).toHaveBeenLastCalledWith(
+    expect.objectContaining({ height: 300 }),
+  );
+  vi.spyOn(window, "devicePixelRatio", "get").mockReturnValue(2);
+  await act(async () => listeners[listeners.length - 1]?.());
+  expect(mocks.setSize).toHaveBeenLastCalledWith(
+    expect.objectContaining({ height: 480 }),
+  );
+});
+
 test("shows the menu after the new note is in place", async () => {
   await act(async () => root.render(<ContextMenuApp />));
   await act(async () => {
