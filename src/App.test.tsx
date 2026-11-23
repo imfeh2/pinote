@@ -33,6 +33,8 @@ vi.mock("@tauri-apps/api/window", async (importOriginal) => ({
     label: "note",
     listen: async () => mocks.noop,
     onScaleChanged: async () => mocks.noop,
+    onResized: async () => mocks.noop,
+    innerSize: async () => ({ width: 300, height: 400 }),
     clearEffects: async () => {},
   }),
 }));

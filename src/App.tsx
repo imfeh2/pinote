@@ -19,6 +19,7 @@ import { useNoteWindowMouseInteractions } from "@/hooks/useNoteWindowMouseIntera
 import { useNoteWindowState } from "@/hooks/useNoteWindowState";
 import { useSettings } from "@/hooks/useSettings";
 import { useTheme } from "@/hooks/useTheme";
+import { useWindowContentSize } from "@/hooks/useWindowContentSize";
 import { useWindowControl } from "@/hooks/useWindowControl";
 import { useWorkingCopy } from "@/hooks/useWorkingCopy";
 import { logError } from "@/lib/logger";
@@ -441,13 +442,16 @@ function App({
     ],
   );
 
+  const contentSize = useWindowContentSize(appWindow);
+
   const pinnedVisualStyle = useMemo(
     () =>
       ({
         "--pinote-visual-opacity": noteOpacity.toString(),
         "--pinote-visual-opacity-percent": `${Math.round(noteOpacity * 100)}%`,
+        ...contentSize,
       }) as CSSProperties,
-    [noteOpacity],
+    [contentSize, noteOpacity],
   );
 
   const noteBackgroundStyle = useMemo(() => {
