@@ -295,9 +295,7 @@ function ContextMenuApp() {
   useEffect(() => {
     let query: MediaQueryList;
     const watch = () => {
-      query = window.matchMedia(
-        `(resolution: ${window.devicePixelRatio}dppx)`,
-      );
+      query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
       query.addEventListener("change", handleChange, { once: true });
     };
     const handleChange = () => {

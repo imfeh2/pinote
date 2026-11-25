@@ -148,7 +148,10 @@ pub fn open_context_menu(
         .map_err(fail)?
         .ok_or("context menu monitor not found")?
         .scale_factor();
-    let menu_size = menu.outer_size().map_err(fail)?.to_logical::<f64>(menu_scale);
+    let menu_size = menu
+        .outer_size()
+        .map_err(fail)?
+        .to_logical::<f64>(menu_scale);
     let monitor_scale = monitor
         .as_ref()
         .map_or(note_scale, |monitor| monitor.scale_factor());

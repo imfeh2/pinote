@@ -10,7 +10,9 @@ vi.mock("@/lib/logger", () => ({ logError: vi.fn() }));
 
 let root: Root;
 let container: HTMLDivElement;
-let resized: ((event: { payload: { width: number; height: number } }) => void) | null;
+let resized:
+  | ((event: { payload: { width: number; height: number } }) => void)
+  | null;
 let result: ReturnType<typeof useWindowContentSize> = null;
 
 const appWindow = {

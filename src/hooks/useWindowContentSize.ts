@@ -38,9 +38,7 @@ export function useWindowContentSize(appWindow: Window) {
       watchScale();
     };
     const watchScale = () => {
-      query = window.matchMedia(
-        `(resolution: ${window.devicePixelRatio}dppx)`,
-      );
+      query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
       query.addEventListener("change", handleScaleChange, { once: true });
     };
     const resized = appWindow
